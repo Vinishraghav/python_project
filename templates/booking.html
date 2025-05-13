@@ -1,0 +1,18 @@
+{% extends "base.html" %} {% block content %}
+<div class="card">
+  <div class="card-header bg-success text-white">
+    <h2>Booking Confirmation</h2>
+  </div>
+  <div class="card-body">
+    <h3>{{ van.name }}</h3>
+    <p>
+      <strong>Dates:</strong> {{ booking.start_date.strftime('%Y-%m-%d') }} to
+      {{ booking.end_date.strftime('%Y-%m-%d') }}
+    </p>
+    <p><strong>Passengers:</strong> {{ booking.passengers }}</p>
+    <p><strong>Total Price:</strong> ${{ booking.total_price }}</p>
+    <div class="alert alert-success">Your booking has been confirme d!</div>
+    <a href="/" class="btn btn-primary">Back to Home</a>
+  </div>
+</div>
+{% endblock %}

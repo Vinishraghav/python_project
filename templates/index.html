@@ -1,0 +1,51 @@
+{% extends "base.html" %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h2>Book Your Tour Van</h2>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('list_vans') }}" method="get">
+          <div class="mb-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input
+              type="date"
+              class="form-control"
+              id="start_date"
+              name="start_date"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input
+              type="date"
+              class="form-control"
+              id="end_date"
+              name="end_date"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="passengers" class="form-label"
+              >Number of Passengers</label
+            >
+            <input
+              type="number"
+              class="form-control"
+              id="passengers"
+              name="passengers"
+              min="1"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">
+            Check Availability
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %} {% block content %}
+<h1 class="mb-4">Available Vans</h1>
+<div class="row">
+  {% for van in vans %}
+  <div class="col-md-4 mb-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">{{ van.name }}</h5>
+        <p class="card-text">
+          <strong>Price:</strong> ${{ van.price }}/day<br />
+          <strong>Seats:</strong> {{ van.seats }}
+        </p>
+      </div>
+      <div class="card-footer">
+        <form action="{{ url_for('book') }}" method="post">
+          <input type="hidden" name="van_id" value="{{ van.id }}" />
+          <input
+            type="hidden"
+            name="start_date"
+            value="{{ request.args.start_date }}"
+          />
+          <input
+            type="hidden"
+            name="end_date"
+            value="{{ request.args.end_date }}"
+          />
+          <input
+            type="hidden"
+            name="passengers"
+            value="{{ request.args.passengers }}"
+          />
+          <button type="submit" class="btn btn-primary w-100">Book Now</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

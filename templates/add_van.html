@@ -1,0 +1,52 @@
+{% extends "base.html" %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h4>Add New Van</h4>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label for="name" class="form-label">Van Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="name"
+              name="name"
+              placeholder="Enter van name"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="price" class="form-label">Price per Day ($)</label>
+            <input
+              type="number"
+              class="form-control"
+              id="price"
+              name="price"
+              placeholder="Enter price per day"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="seats" class="form-label">Number of Seats</label>
+            <input
+              type="number"
+              class="form-control"
+              id="seats"
+              name="seats"
+              placeholder="Enter seat count"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-success">Add Van</button>
+          <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
+            >Cancel</a
+          >
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
