@@ -1,3 +1,10 @@
+import firebase_admin
+from firebase_admin import credentials, auth
+
+cred = credentials.Certificate('firebase_config.json')
+firebase_admin.initialize_app(cred)
+
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from datetime import datetime
 
@@ -48,6 +55,21 @@ def login():
     
     return render_template('home.html')
 
+from firebase_admin import auth
+from flask import jsonify
+
+@app.route('/verify', methods=['POST'])
+def verify():
+    try:
+        id_token = request.json.get('idToken')
+        decoded_token = auth.verify_id_token(id_token)
+        session['user'] = decoded_token['email']
+        session['uid'] = decoded_token['uid']
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 # The admin route should be defined once.
 @app.route('/admin')
 def admin_dashboard():
@@ -55,6 +77,15 @@ def admin_dashboard():
         flash("Access denied", "danger")
         return redirect(url_for('login'))
     return render_template('admin.html', vans=VANS)
+
+@app.route('/signup')
+def signup_page():
+    return render_template('signup.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
+
 
 @app.route('/logout')
 def logout():
