@@ -1,0 +1,208 @@
+{% extends "base.html" %} 
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card auth-form fade-in">
+      <div class="card-header text-center">
+        <h2>Verify Your Email</h2>
+      </div>
+      <div class="card-body">
+        <div class="text-center mb-4">
+          <div class="verification-icon">
+            <i class="fas fa-envelope-open-text fa-3x text-primary"></i>
+          </div>
+          <p class="mt-3">We've sent a verification code to <strong>{{ email }}</strong></p>
+          <p class="text-muted">Please check your email and enter the code below to complete your registration</p>
+        </div>
+        
+        <form id="otp-form">
+          <input type="hidden" id="email" value="{{ email }}">
+          <input type="hidden" id="role" value="{{ role }}">
+          <input type="hidden" id="firebase-id-token" value="{{ id_token }}">
+          
+          <div class="mb-4">
+            <label for="otp" class="form-label">Verification Code</label>
+            <div class="otp-input-container">
+              <input type="text" class="form-control otp-input" id="otp" maxlength="6" placeholder="Enter 6-digit code" required>
+              <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary" id="resend-otp">
+                  <i class="fas fa-sync-alt me-2"></i>Resend
+                </button>
+              </div>
+            </div>
+            <div class="form-text text-muted">
+              <i class="fas fa-clock me-1"></i>Code expires in <span id="countdown">10:00</span>
+            </div>
+          </div>
+          
+          <div class="d-grid">
+            <button type="button" class="btn btn-primary" onclick="verifyOTP()">
+              <i class="fas fa-check-circle me-2"></i>Verify & Complete Registration
+            </button>
+          </div>
+        </form>
+        
+        <div class="mt-4 text-center">
+          <p>
+            <a href="{{ url_for('signup_page', role=role) }}" class="text-decoration-none">
+              <i class="fas fa-arrow-left me-1"></i>Back to Sign Up
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .verification-icon {
+    width: 80px;
+    height: 80px;
+    background-color: rgba(74, 109, 167, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+  
+  .otp-input-container {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .otp-input {
+    letter-spacing: 5px;
+    font-size: 1.2rem;
+    text-align: center;
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    startCountdown();
+    
+    // Resend OTP button
+    document.getElementById('resend-otp').addEventListener('click', function() {
+      const email = document.getElementById('email').value;
+      const role = document.getElementById('role').value;
+      
+      // Show loading state
+      this.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending...';
+      this.disabled = true;
+      
+      // Send request to resend OTP
+      fetch('/resend_otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, role }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showAlert('Verification code resent successfully!', 'success');
+          startCountdown(); // Restart countdown
+        } else {
+          showAlert('Failed to resend code: ' + data.error, 'danger');
+        }
+      })
+      .catch(error => {
+        showAlert('Error: ' + error.message, 'danger');
+      })
+      .finally(() => {
+        // Reset button
+        this.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Resend';
+        this.disabled = false;
+      });
+    });
+  });
+  
+  function startCountdown() {
+    let minutes = 10;
+    let seconds = 0;
+    const countdownEl = document.getElementById('countdown');
+    
+    const interval = setInterval(function() {
+      if (seconds === 0) {
+        if (minutes === 0) {
+          clearInterval(interval);
+          countdownEl.innerHTML = 'Expired';
+          countdownEl.classList.add('text-danger');
+          return;
+        }
+        minutes--;
+        seconds = 59;
+      } else {
+        seconds--;
+      }
+      
+      countdownEl.innerHTML = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+    }, 1000);
+  }
+  
+  function verifyOTP() {
+    const email = document.getElementById('email').value;
+    const otp = document.getElementById('otp').value;
+    const role = document.getElementById('role').value;
+    const idToken = document.getElementById('firebase-id-token').value;
+    
+    if (!otp || otp.length !== 6) {
+      showAlert('Please enter a valid 6-digit verification code', 'warning');
+      return;
+    }
+    
+    // Show loading state
+    const button = document.querySelector('button[onclick="verifyOTP()"]');
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Verifying...';
+    button.disabled = true;
+    
+    // Send verification request
+    fetch('/verify_otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, otp, role, idToken }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('Verification successful! Redirecting...', 'success');
+        setTimeout(() => {
+          window.location.href = data.redirect;
+        }, 1500);
+      } else {
+        showAlert('Verification failed: ' + data.error, 'danger');
+        button.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verify & Complete Registration';
+        button.disabled = false;
+      }
+    })
+    .catch(error => {
+      showAlert('Error: ' + error.message, 'danger');
+      button.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verify & Complete Registration';
+      button.disabled = false;
+    });
+  }
+  
+  function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    const cardBody = document.querySelector('.card-body');
+    cardBody.insertBefore(alertDiv, cardBody.firstChild);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+      alertDiv.classList.remove('show');
+      setTimeout(() => alertDiv.remove(), 300);
+    }, 5000);
+  }
+</script>
+{% endblock %}

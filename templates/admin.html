@@ -1,47 +1,659 @@
 {% extends "base.html" %} {% block content %}
-<h2 class="my-4 text-center">Van Updator Dashboard</h2>
-<div class="text-end mb-3">
-  <a href="{{ url_for('add_van') }}" class="btn btn-success">+ Add Van</a>
+<div class="container">
+  <div class="admin-header mb-4">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <h2 class="admin-title">
+          <i class="fas fa-shuttle-van me-2"></i>Van Owner Dashboard
+        </h2>
+      </div>
+      <div class="col-md-6 text-end">
+        <a href="{{ url_for('add_van') }}" class="btn btn-success">
+          <i class="fas fa-plus-circle me-2"></i>Add New Van
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Stats -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="stats-card bg-primary text-white">
+        <div class="stats-icon">
+          <i class="fas fa-shuttle-van"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ vans|length }}</h3>
+          <p>Total Vans</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card bg-success text-white">
+        <div class="stats-icon">
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ BOOKINGS|default([])|length }}</h3>
+          <p>Total Bookings</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card bg-info text-white">
+        <div class="stats-icon">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stats-info">
+          {% set total_revenue = 0 %} {% for booking in BOOKINGS|default([]) %}
+          {% set total_revenue = total_revenue + booking.total_price|default(0)
+          %} {% endfor %}
+          <h3>${{ total_revenue }}</h3>
+          <p>Total Revenue</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link active"
+        id="vans-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#vans"
+        type="button"
+        role="tab"
+        aria-controls="vans"
+        aria-selected="true"
+      >
+        <i class="fas fa-shuttle-van me-2"></i>My Vans
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="bookings-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#bookings"
+        type="button"
+        role="tab"
+        aria-controls="bookings"
+        aria-selected="false"
+      >
+        <i class="fas fa-calendar-alt me-2"></i>Bookings
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="adminTabsContent">
+    <!-- Vans Tab -->
+    <div
+      class="tab-pane fade show active"
+      id="vans"
+      role="tabpanel"
+      aria-labelledby="vans-tab"
+    >
+      <div class="card">
+        <div class="card-header bg-light">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Van Inventory
+              </h5>
+            </div>
+            <div class="col-md-6">
+              <input
+                type="text"
+                class="form-control"
+                id="vanSearch"
+                placeholder="Search vans..."
+                onkeyup="searchVans()"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover" id="vansTable">
+              <thead class="table-light">
+                <tr>
+                  <th onclick="sortTable(0, 'vansTable')">
+                    ID <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(1, 'vansTable')">
+                    Name <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(2, 'vansTable')">
+                    Price ($/day) <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(3, 'vansTable')">
+                    Seats <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for van in vans %}
+                <tr
+                  class="van-row fade-in"
+                  style="animation-delay: {{ loop.index * 50 }}ms"
+                >
+                  <td>{{ van.id }}</td>
+                  <td>{{ van.name }}</td>
+                  <td>${{ van.price }}</td>
+                  <td>{{ van.seats }}</td>
+                  <td>
+                    <span class="badge bg-success">Available</span>
+                  </td>
+                  <td>
+                    <div class="btn-group">
+                      <a
+                        href="{{ url_for('edit_van', van_id=van.id) }}"
+                        class="btn btn-warning btn-sm"
+                      >
+                        <i class="fas fa-edit"></i> Edit
+                      </a>
+                      <form
+                        action="{{ url_for('delete_van', van_id=van.id) }}"
+                        method="post"
+                        class="d-inline delete-form"
+                      >
+                        <button class="btn btn-danger btn-sm" type="submit">
+                          <i class="fas fa-trash"></i> Delete
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %} {% if vans|length == 0 %}
+                <tr>
+                  <td colspan="6" class="text-center py-4">
+                    <div class="empty-state">
+                      <i class="fas fa-shuttle-van fa-3x text-muted mb-3"></i>
+                      <h5>No Vans Available</h5>
+                      <p>You haven't added any vans yet.</p>
+                      <a
+                        href="{{ url_for('add_van') }}"
+                        class="btn btn-primary"
+                      >
+                        <i class="fas fa-plus-circle me-2"></i>Add Your First
+                        Van
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings Tab -->
+    <div
+      class="tab-pane fade"
+      id="bookings"
+      role="tabpanel"
+      aria-labelledby="bookings-tab"
+    >
+      <div class="card">
+        <div class="card-header bg-light">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <h5 class="mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>Recent Bookings
+                <span class="live-indicator">Live Updates</span>
+              </h5>
+            </div>
+            <div class="col-md-6">
+              <input
+                type="text"
+                class="form-control"
+                id="bookingSearch"
+                placeholder="Search bookings..."
+                onkeyup="searchBookings()"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover" id="bookingsTable">
+              <thead class="table-light">
+                <tr>
+                  <th onclick="sortTable(0, 'bookingsTable')">
+                    ID <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(1, 'bookingsTable')">
+                    Van <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(2, 'bookingsTable')">
+                    Start Date <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(3, 'bookingsTable')">
+                    End Date <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(4, 'bookingsTable')">
+                    Passengers <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th onclick="sortTable(5, 'bookingsTable')">
+                    Total <i class="fas fa-sort ms-1"></i>
+                  </th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for booking in BOOKINGS|default([]) %} {% set van =
+                vans|selectattr('id', 'eq', booking.van_id)|first %}
+                <tr
+                  class="booking-row fade-in"
+                  style="animation-delay: {{ loop.index * 50 }}ms"
+                >
+                  <td>{{ '%06d'|format(booking.id|default(loop.index0)) }}</td>
+                  <td>{{ van.name if van else 'Unknown Van' }}</td>
+                  <td>{{ booking.start_date.strftime('%Y-%m-%d') }}</td>
+                  <td>{{ booking.end_date.strftime('%Y-%m-%d') }}</td>
+                  <td>{{ booking.passengers }}</td>
+                  <td>${{ booking.total_price }}</td>
+                  <td>
+                    <span class="badge bg-success"
+                      >{{ booking.status|default('Confirmed') }}</span
+                    >
+                  </td>
+                </tr>
+                {% endfor %} {% if BOOKINGS|default([])|length == 0 %}
+                <tr>
+                  <td colspan="7" class="text-center py-4">
+                    <div class="empty-state">
+                      <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                      <h5>No Bookings Yet</h5>
+                      <p>You don't have any bookings yet.</p>
+                    </div>
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Price ($/day)</th>
-      <th>Seats</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for van in vans %}
-    <tr>
-      <td>{{ van.id }}</td>
-      <td>{{ van.name }}</td>
-      <td>{{ van.price }}</td>
-      <td>{{ van.seats }}</td>
-      <td>
-        <a
-          href="{{ url_for('edit_van', van_id=van.id) }}"
-          class="btn btn-warning btn-sm"
-          >Edit</a
-        >
-        <form
-          action="{{ url_for('delete_van', van_id=van.id) }}"
-          method="post"
-          style="display: inline"
-        >
-          <button
-            class="btn btn-danger btn-sm"
-            type="submit"
-            onclick="return confirm('Delete this van?')"
-          >
-            Delete
-          </button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+
+<style>
+  /* Admin Dashboard Styling */
+  .admin-title {
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-bottom: 0;
+  }
+
+  /* Stats Cards */
+  .stats-card {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .stats-icon {
+    font-size: 2.5rem;
+    margin-right: 1rem;
+    opacity: 0.8;
+  }
+
+  .stats-info h3 {
+    font-size: 1.8rem;
+    margin-bottom: 0;
+    font-weight: 700;
+  }
+
+  .stats-info p {
+    margin-bottom: 0;
+    opacity: 0.8;
+  }
+
+  /* Table Styling */
+  .table th {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .table th i {
+    opacity: 0.5;
+    font-size: 0.8rem;
+  }
+
+  .table th:hover i {
+    opacity: 1;
+  }
+
+  .van-row,
+  .booking-row {
+    transition: all 0.3s ease;
+  }
+
+  .van-row:hover,
+  .booking-row:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+
+  /* Empty State */
+  .empty-state {
+    padding: 2rem;
+    text-align: center;
+  }
+
+  /* Delete Form Animation */
+  .delete-form button {
+    transition: all 0.3s ease;
+  }
+
+  .delete-form button:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Tab Styling */
+  .nav-tabs .nav-link {
+    color: #6c757d;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .nav-tabs .nav-link:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  .nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    border-bottom: 3px solid var(--primary-color);
+    background-color: transparent;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Confirm delete
+    const deleteForms = document.querySelectorAll(".delete-form");
+    deleteForms.forEach((form) => {
+      form.addEventListener("submit", function (e) {
+        if (
+          !confirm(
+            "Are you sure you want to delete this van? This action cannot be undone."
+          )
+        ) {
+          e.preventDefault();
+        } else {
+          // Add loading animation
+          const button = this.querySelector("button");
+          button.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...';
+          button.disabled = true;
+        }
+      });
+    });
+
+    // Function to update bookings list in real-time
+    window.updateBookingsList = function (bookingData) {
+      console.log("Updating bookings list with:", bookingData);
+
+      // Check if we're on the bookings tab
+      const bookingsTab = document.getElementById("bookings");
+      if (!bookingsTab) return;
+
+      // Create notification
+      createNotification(
+        "New Booking",
+        `New booking received for ${bookingData.van_name}`
+      );
+
+      // Find the bookings table
+      const bookingsTable = document.getElementById("bookingsTable");
+      if (!bookingsTable) return;
+
+      // Get the tbody
+      const tbody = bookingsTable.querySelector("tbody");
+
+      // Check if there's an empty state message
+      const emptyState = tbody.querySelector(".empty-state");
+      if (emptyState) {
+        // Remove empty state
+        emptyState.closest("tr").remove();
+      }
+
+      // Create new row
+      const newRow = document.createElement("tr");
+      newRow.className = "booking-row fade-in update-highlight";
+
+      // Format booking ID with leading zeros
+      const formattedId = String(bookingData.id).padStart(6, "0");
+
+      // Add row content
+      newRow.innerHTML = `
+        <td>${formattedId}</td>
+        <td>${bookingData.van_name}</td>
+        <td>${bookingData.start_date}</td>
+        <td>${bookingData.end_date}</td>
+        <td>${bookingData.passengers || "2"}</td>
+        <td>$${bookingData.total_price}</td>
+        <td><span class="badge bg-success">Confirmed</span></td>
+      `;
+
+      // Add to the top of the table
+      if (tbody.firstChild) {
+        tbody.insertBefore(newRow, tbody.firstChild);
+      } else {
+        tbody.appendChild(newRow);
+      }
+
+      // Update stats
+      updateStats();
+    };
+
+    // Function to update van list in real-time
+    window.updateVansList = function (vanData) {
+      console.log("Updating vans list with:", vanData);
+
+      // Find the van row
+      const vanRow = document
+        .querySelector(`#vansTable tr td:first-child:contains('${vanData.id}')`)
+        .closest("tr");
+      if (vanRow) {
+        // Update the row with new data
+        vanRow.classList.add("update-highlight");
+
+        // Update fields
+        vanRow.querySelector("td:nth-child(2)").textContent = vanData.name;
+        vanRow.querySelector("td:nth-child(3)").textContent =
+          "$" + vanData.price;
+        vanRow.querySelector("td:nth-child(4)").textContent = vanData.seats;
+
+        // Remove highlight after animation completes
+        setTimeout(() => {
+          vanRow.classList.remove("update-highlight");
+        }, 2000);
+      }
+    };
+
+    // Function to update stats
+    function updateStats() {
+      // Get stats elements
+      const totalBookingsEl = document.querySelector(
+        ".stats-card:nth-child(2) .stats-info h3"
+      );
+      const totalRevenueEl = document.querySelector(
+        ".stats-card:nth-child(3) .stats-info h3"
+      );
+
+      if (totalBookingsEl) {
+        // Increment bookings count
+        let bookingsCount = parseInt(totalBookingsEl.textContent);
+        totalBookingsEl.textContent = bookingsCount + 1;
+      }
+
+      if (totalRevenueEl) {
+        // Add to revenue
+        let revenue = parseInt(totalRevenueEl.textContent.replace("$", ""));
+        // For demo, add a random amount between $50-200
+        let newBookingAmount = Math.floor(Math.random() * 150) + 50;
+        totalRevenueEl.textContent = "$" + (revenue + newBookingAmount);
+      }
+    }
+
+    // Auto-refresh bookings every 30 seconds
+    setInterval(function () {
+      if (
+        document.getElementById("bookings-tab").classList.contains("active")
+      ) {
+        // In a real app, this would fetch new data via AJAX
+        // For demo, we'll just add a visual indicator
+        const refreshIndicator = document.createElement("div");
+        refreshIndicator.className =
+          "alert alert-info alert-dismissible fade show";
+        refreshIndicator.innerHTML = `
+          <i class="fas fa-sync-alt me-2"></i>
+          Refreshing booking data...
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        document
+          .querySelector("#bookings .card-header")
+          .appendChild(refreshIndicator);
+
+        // Remove after 2 seconds
+        setTimeout(() => {
+          refreshIndicator.classList.remove("show");
+          setTimeout(() => refreshIndicator.remove(), 300);
+        }, 2000);
+      }
+    }, 30000);
+  });
+
+  // Table search function
+  function searchVans() {
+    const input = document.getElementById("vanSearch");
+    const filter = input.value.toUpperCase();
+    const table = document.getElementById("vansTable");
+    const rows = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < rows.length; i++) {
+      let found = false;
+      const cells = rows[i].getElementsByTagName("td");
+
+      for (let j = 0; j < cells.length; j++) {
+        const cell = cells[j];
+        if (cell) {
+          const textValue = cell.textContent || cell.innerText;
+          if (textValue.toUpperCase().indexOf(filter) > -1) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      rows[i].style.display = found ? "" : "none";
+    }
+  }
+
+  function searchBookings() {
+    const input = document.getElementById("bookingSearch");
+    const filter = input.value.toUpperCase();
+    const table = document.getElementById("bookingsTable");
+    const rows = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < rows.length; i++) {
+      let found = false;
+      const cells = rows[i].getElementsByTagName("td");
+
+      for (let j = 0; j < cells.length; j++) {
+        const cell = cells[j];
+        if (cell) {
+          const textValue = cell.textContent || cell.innerText;
+          if (textValue.toUpperCase().indexOf(filter) > -1) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      rows[i].style.display = found ? "" : "none";
+    }
+  }
+
+  // Table sorting function
+  function sortTable(n, tableId) {
+    const table = document.getElementById(tableId);
+    let rows,
+      switching = true;
+    let i,
+      x,
+      y,
+      shouldSwitch,
+      dir = "asc";
+    let switchcount = 0;
+
+    while (switching) {
+      switching = false;
+      rows = table.rows;
+
+      for (i = 1; i < rows.length - 1; i++) {
+        shouldSwitch = false;
+        x = rows[i].getElementsByTagName("td")[n];
+        y = rows[i + 1].getElementsByTagName("td")[n];
+
+        if (dir === "asc") {
+          if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+            shouldSwitch = true;
+            break;
+          }
+        } else if (dir === "desc") {
+          if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+            shouldSwitch = true;
+            break;
+          }
+        }
+      }
+
+      if (shouldSwitch) {
+        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+        switching = true;
+        switchcount++;
+      } else {
+        if (switchcount === 0 && dir === "asc") {
+          dir = "desc";
+          switching = true;
+        }
+      }
+    }
+
+    // Update sort icons
+    const headers = table.querySelectorAll("th");
+    headers.forEach((header, index) => {
+      const icon = header.querySelector("i");
+      if (index === n) {
+        icon.className =
+          dir === "asc" ? "fas fa-sort-up ms-1" : "fas fa-sort-down ms-1";
+      } else {
+        icon.className = "fas fa-sort ms-1";
+      }
+    });
+  }
+</script>
 {% endblock %}

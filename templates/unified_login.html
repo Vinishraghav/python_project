@@ -1,14 +1,13 @@
-{% extends "base.html" %} 
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="row justify-content-center mt-5">
   <div class="col-md-6">
     <div class="card auth-form fade-in">
       <div class="card-header text-center">
-        <h2>Create an Account</h2>
+        <h2>Welcome to Tour Van Booking</h2>
       </div>
       <div class="card-body">
-        <!-- Firebase Signup Form -->
-        <form id="firebase-signup-form">
+        <!-- Firebase Login Form -->
+        <form id="firebase-login-form">
           <div class="mb-3">
             <label for="firebase-email" class="form-label">Email address</label>
             <input
@@ -27,21 +26,41 @@
               required
             />
           </div>
-          <div class="mb-3">
-            <label for="role" class="form-label">Register as</label>
-            <select class="form-select" id="role" required>
-              <option value="">Select role</option>
-              <option value="user">User</option>
-              <option value="updator">Van Updator</option>
-            </select>
+          <input
+            type="hidden"
+            id="role"
+            value="{{ request.args.get('role', '') }}"
+          />
+          <div class="role-indicator mb-4 text-center">
+            <div class="role-icon mx-auto mb-2">
+              <i
+                class="fas {% if request.args.get('role') == 'updator' %}fa-shuttle-van{% else %}fa-user{% endif %} fa-2x text-primary"
+              ></i>
+            </div>
+            <h5>
+              Logging in as {% if request.args.get('role') == 'updator' %}Van
+              Owner{% else %}Customer{% endif %}
+            </h5>
+            <p class="text-muted small">
+              Not you? <a href="{{ url_for('role_selection') }}">Change role</a>
+            </p>
           </div>
           <div class="d-grid">
-            <button type="button" class="btn btn-primary" onclick="firebaseSignup()">Sign Up</button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="firebaseLogin()"
+            >
+              Login
+            </button>
           </div>
         </form>
 
         <div class="mt-4 text-center">
-          <p>Already have an account? <a href="{{ url_for('unified_login') }}">Login here</a></p>
+          <p>
+            Don't have an account?
+            <a href="{{ url_for('signup_page') }}">Sign up here</a>
+          </p>
         </div>
       </div>
     </div>
@@ -52,7 +71,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth,
-    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
@@ -68,67 +87,71 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
 
-  window.firebaseSignup = async function() {
+  window.firebaseLogin = async function () {
     const email = document.getElementById("firebase-email").value;
     const password = document.getElementById("firebase-password").value;
     const role = document.getElementById("role").value;
-    
+
     if (!role) {
       showAlert("Please select a role", "warning");
       return;
     }
-    
+
     try {
       // Show loading indicator
-      document.getElementById("firebase-signup-form").classList.add("loading");
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Send role information to the server
+      document.getElementById("firebase-login-form").classList.add("loading");
+
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const idToken = await userCredential.user.getIdToken();
-      const response = await fetch("/register_role", {
+
+      // Send the token to Flask for verification
+      const response = await fetch("/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ idToken, role }),
       });
-      
+
       const result = await response.json();
       if (result.success) {
-        showAlert("Signup successful! Please log in.", "success");
-        
-        // Redirect to login page after a short delay
-        setTimeout(() => {
-          window.location.href = "{{ url_for('unified_login') }}";
-        }, 2000);
+        window.location.href = result.redirect;
       } else {
-        showAlert("Error registering role: " + (result.error || "Unknown error"), "danger");
+        showAlert(
+          "Login failed: " + (result.error || "Unknown error"),
+          "danger"
+        );
       }
     } catch (error) {
       showAlert("Error: " + error.message, "danger");
     } finally {
       // Hide loading indicator
-      document.getElementById("firebase-signup-form").classList.remove("loading");
+      document
+        .getElementById("firebase-login-form")
+        .classList.remove("loading");
     }
   };
 </script>
 
 <script>
   function showAlert(message, type) {
-    const alertDiv = document.createElement('div');
+    const alertDiv = document.createElement("div");
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
     alertDiv.innerHTML = `
       ${message}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-    
-    const cardBody = document.querySelector('.card-body');
+
+    const cardBody = document.querySelector(".card-body");
     cardBody.insertBefore(alertDiv, cardBody.firstChild);
-    
+
     // Auto dismiss after 5 seconds
     setTimeout(() => {
-      alertDiv.classList.remove('show');
+      alertDiv.classList.remove("show");
       setTimeout(() => alertDiv.remove(), 300);
     }, 5000);
   }

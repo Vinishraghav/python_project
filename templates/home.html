@@ -6,7 +6,7 @@
         <h2>Login to Tour Van Booking</h2>
       </div>
       <div class="card-body">
-        <form action="{{ url_for('login') }}" method="post">
+        <form action="{{ url_for('test_login') }}" method="post">
           <div class="mb-3">
             <label for="email" class="form-label">Email address</label>
             <input
@@ -39,6 +39,17 @@
             <button type="submit" class="btn btn-primary">Login</button>
           </div>
         </form>
+        <div class="mt-3 text-center">
+          <p>Or use <a href="{{ url_for('login_page') }}">Firebase Login</a></p>
+          <p>
+            Don't have an account?
+            <a href="{{ url_for('signup_page') }}">Sign up here</a>
+          </p>
+          <p>
+            <a href="{{ url_for('debug_session') }}">Debug Session</a> |
+            <a href="{{ url_for('test_login_page') }}">Test Login</a>
+          </p>
+        </div>
       </div>
     </div>
   </div>

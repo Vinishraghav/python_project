@@ -10,28 +10,79 @@
     />
     <link
       rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
       href="{{ url_for('static', filename='css/styles.css') }}"
+    />
+    <!-- Favicon -->
+    <link
+      rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='img/favicon.png') }}"
     />
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark">
       <div class="container">
-        <a class="navbar-brand" href="/">Tour Van Booking</a>
-        {% if session.get('user') %}
-        <form
-          class="d-flex ms-auto"
-          action="{{ url_for('logout') }}"
-          method="get"
+        <a class="navbar-brand" href="/">
+          <i class="fas fa-shuttle-van me-2"></i>Tour Van Booking
+        </a>
+
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
         >
-          <button
-            class="btn btn-outline-light"
-            type="submit"
-            aria-label="Logout"
-          >
-            Logout
-          </button>
-        </form>
-        {% endif %}
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            {% if session.get('user') %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('home') }}">
+                <i class="fas fa-home me-1"></i> Home
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('list_vans') }}">
+                <i class="fas fa-shuttle-van me-1"></i> Vans
+              </a>
+            </li>
+            {% if session.get('role') == 'updator' %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-cog me-1"></i> Admin
+              </a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">
+                <i class="fas fa-sign-out-alt me-1"></i> Logout
+              </a>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link text-light">
+                <i class="fas fa-user me-1"></i> {{ session.get('user') }}
+              </span>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('unified_login') }}">
+                <i class="fas fa-sign-in-alt me-1"></i> Login
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('signup_page') }}">
+                <i class="fas fa-user-plus me-1"></i> Sign Up
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
       </div>
     </nav>
 
@@ -42,19 +93,136 @@
         class="alert alert-{{ category }} alert-dismissible fade show"
         role="alert"
       >
-        {{ message }}
+        {% if category == 'success' %}
+        <i class="fas fa-check-circle me-2"></i>
+        {% elif category == 'danger' %}
+        <i class="fas fa-exclamation-circle me-2"></i>
+        {% elif category == 'warning' %}
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% elif category == 'info' %}
+        <i class="fas fa-info-circle me-2"></i>
+        {% endif %} {{ message }}
         <button
           type="button"
           class="btn-close"
           data-bs-dismiss="alert"
-          aria-label="Close alert"
-          title="Close"
+          aria-label="Close"
         ></button>
       </div>
       {% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock %}
     </div>
 
+    <footer class="mt-5 py-3 text-center text-muted">
+      <div class="container">
+        <p>&copy; 2025 Tour Van Booking. All rights reserved.</p>
+      </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+
+    <!-- Socket.IO Connection -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Connect to Socket.IO server
+        const socket = io();
+
+        // Store socket in window object for access in other scripts
+        window.socket = socket;
+
+        // Connection events
+        socket.on("connect", function () {
+          console.log("Connected to server");
+        });
+
+        socket.on("disconnect", function () {
+          console.log("Disconnected from server");
+        });
+
+        // Listen for booking updates
+        socket.on("booking_update", function (data) {
+          console.log("Booking update received:", data);
+
+          // Create notification
+          createNotification(
+            "New Booking",
+            `Van "${data.van_name}" has been booked from ${data.start_date} to ${data.end_date}`
+          );
+
+          // Update UI if on relevant pages
+          if (typeof updateBookingsList === "function") {
+            updateBookingsList(data);
+          }
+
+          if (typeof updateVanAvailability === "function") {
+            updateVanAvailability(data.van_id);
+          }
+        });
+
+        // Listen for van updates
+        socket.on("van_update", function (data) {
+          console.log("Van update received:", data);
+
+          // Create notification
+          createNotification(
+            "Van Update",
+            `Van "${data.name}" has been updated`
+          );
+
+          // Update UI if on relevant pages
+          if (typeof updateVansList === "function") {
+            updateVansList(data);
+          }
+        });
+      });
+
+      // Function to create notifications
+      function createNotification(title, message) {
+        // Check if the Notification API is supported
+        if (!("Notification" in window)) {
+          console.log("This browser does not support desktop notification");
+          return;
+        }
+
+        // Create an in-app notification
+        const notificationContainer = document.getElementById(
+          "notification-container"
+        );
+        if (!notificationContainer) {
+          // Create notification container if it doesn't exist
+          const container = document.createElement("div");
+          container.id = "notification-container";
+          container.className = "notification-container";
+          document.body.appendChild(container);
+        }
+
+        // Create notification element
+        const notification = document.createElement("div");
+        notification.className = "notification fade-in";
+        notification.innerHTML = `
+          <div class="notification-header">
+            <strong>${title}</strong>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+          </div>
+          <div class="notification-body">
+            ${message}
+          </div>
+        `;
+
+        // Add to container
+        document
+          .getElementById("notification-container")
+          .appendChild(notification);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+          notification.classList.add("fade-out");
+          setTimeout(() => {
+            notification.remove();
+          }, 300);
+        }, 5000);
+      }
+    </script>
   </body>
 </html>

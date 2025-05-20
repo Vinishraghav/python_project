@@ -1,51 +1,330 @@
 {% extends "base.html" %} {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">
-        <h2>Book Your Tour Van</h2>
+    <div class="card booking-card fade-in">
+      <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">
+          <i class="fas fa-calendar-alt me-2"></i>Book Your Tour Van
+        </h2>
       </div>
       <div class="card-body">
-        <form action="{{ url_for('list_vans') }}" method="get">
-          <div class="mb-3">
-            <label for="start_date" class="form-label">Start Date</label>
-            <input
-              type="date"
-              class="form-control"
-              id="start_date"
-              name="start_date"
-              required
-            />
+        <div class="booking-steps mb-4">
+          <div class="step active" id="step-1">
+            <div class="step-number">1</div>
+            <div class="step-text">Trip Details</div>
           </div>
-          <div class="mb-3">
-            <label for="end_date" class="form-label">End Date</label>
-            <input
-              type="date"
-              class="form-control"
-              id="end_date"
-              name="end_date"
-              required
-            />
+          <div class="step" id="step-2">
+            <div class="step-number">2</div>
+            <div class="step-text">Select Van</div>
           </div>
-          <div class="mb-3">
+          <div class="step" id="step-3">
+            <div class="step-number">3</div>
+            <div class="step-text">Confirmation</div>
+          </div>
+        </div>
+
+        <form
+          id="booking-form"
+          action="{{ url_for('list_vans') }}"
+          method="get"
+        >
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="fas fa-calendar"></i
+                  ></span>
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="start_date"
+                    name="start_date"
+                    required
+                  />
+                </div>
+                <div class="form-text text-muted">
+                  When will your trip begin?
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="fas fa-calendar-check"></i
+                  ></span>
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="end_date"
+                    name="end_date"
+                    required
+                  />
+                </div>
+                <div class="form-text text-muted">When will your trip end?</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
             <label for="passengers" class="form-label"
               >Number of Passengers</label
             >
-            <input
-              type="number"
-              class="form-control"
-              id="passengers"
-              name="passengers"
-              min="1"
-              required
-            />
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-users"></i></span>
+              <input
+                type="number"
+                class="form-control"
+                id="passengers"
+                name="passengers"
+                min="1"
+                max="15"
+                value="1"
+                required
+              />
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                id="decrease-passengers"
+              >
+                <i class="fas fa-minus"></i>
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                id="increase-passengers"
+              >
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+            <div class="form-text text-muted">
+              How many people will be traveling?
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary">
-            Check Availability
-          </button>
+
+          <div class="trip-summary mb-4 d-none" id="trip-summary">
+            <h5 class="border-bottom pb-2 mb-3">Trip Summary</h5>
+            <div class="row">
+              <div class="col-md-6">
+                <p>
+                  <strong>Duration:</strong>
+                  <span id="trip-duration">0</span> days
+                </p>
+                <p>
+                  <strong>Passengers:</strong>
+                  <span id="trip-passengers">1</span>
+                </p>
+              </div>
+              <div class="col-md-6">
+                <p><strong>Estimated Price Range:</strong></p>
+                <p class="text-primary fs-5">
+                  $<span id="price-min">0</span> - $<span id="price-max"
+                    >0</span
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button
+              type="submit"
+              class="btn btn-primary btn-lg"
+              id="check-availability"
+            >
+              <i class="fas fa-search me-2"></i>Find Available Vans
+            </button>
+          </div>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const startDateInput = document.getElementById("start_date");
+    const endDateInput = document.getElementById("end_date");
+    const passengersInput = document.getElementById("passengers");
+    const decreaseBtn = document.getElementById("decrease-passengers");
+    const increaseBtn = document.getElementById("increase-passengers");
+    const tripSummary = document.getElementById("trip-summary");
+    const tripDuration = document.getElementById("trip-duration");
+    const tripPassengers = document.getElementById("trip-passengers");
+    const priceMin = document.getElementById("price-min");
+    const priceMax = document.getElementById("price-max");
+
+    // Set min date to today
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    startDateInput.min = today.toISOString().split("T")[0];
+    startDateInput.value = today.toISOString().split("T")[0];
+
+    endDateInput.min = tomorrow.toISOString().split("T")[0];
+    endDateInput.value = tomorrow.toISOString().split("T")[0];
+
+    // Update end date min when start date changes
+    startDateInput.addEventListener("change", function () {
+      const startDate = new Date(this.value);
+      const minEndDate = new Date(startDate);
+      minEndDate.setDate(startDate.getDate() + 1);
+
+      endDateInput.min = minEndDate.toISOString().split("T")[0];
+
+      // If end date is before new min, update it
+      if (new Date(endDateInput.value) < minEndDate) {
+        endDateInput.value = minEndDate.toISOString().split("T")[0];
+      }
+
+      updateTripSummary();
+    });
+
+    // Update summary when end date changes
+    endDateInput.addEventListener("change", updateTripSummary);
+
+    // Passenger count buttons
+    decreaseBtn.addEventListener("click", function () {
+      const currentValue = parseInt(passengersInput.value);
+      if (currentValue > 1) {
+        passengersInput.value = currentValue - 1;
+        updateTripSummary();
+      }
+    });
+
+    increaseBtn.addEventListener("click", function () {
+      const currentValue = parseInt(passengersInput.value);
+      if (currentValue < 15) {
+        passengersInput.value = currentValue + 1;
+        updateTripSummary();
+      }
+    });
+
+    // Update when passengers input changes
+    passengersInput.addEventListener("change", function () {
+      // Ensure value is within range
+      if (this.value < 1) this.value = 1;
+      if (this.value > 15) this.value = 15;
+
+      updateTripSummary();
+    });
+
+    // Calculate and update trip summary
+    function updateTripSummary() {
+      const startDate = new Date(startDateInput.value);
+      const endDate = new Date(endDateInput.value);
+      const passengers = parseInt(passengersInput.value);
+
+      // Calculate duration in days
+      const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+      // Update summary
+      tripDuration.textContent = duration;
+      tripPassengers.textContent = passengers;
+
+      // Calculate estimated price range (based on average van prices)
+      const minDailyRate = 50;
+      const maxDailyRate = 150;
+
+      priceMin.textContent = (minDailyRate * duration).toFixed(0);
+      priceMax.textContent = (maxDailyRate * duration).toFixed(0);
+
+      // Show summary
+      tripSummary.classList.remove("d-none");
+
+      // Add animation
+      tripSummary.classList.add("animate__animated", "animate__fadeIn");
+    }
+
+    // Initialize summary
+    updateTripSummary();
+
+    // Form validation
+    document
+      .getElementById("booking-form")
+      .addEventListener("submit", function (event) {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+
+        if (endDate <= startDate) {
+          event.preventDefault();
+          alert("End date must be after start date");
+          endDateInput.focus();
+        }
+      });
+  });
+</script>
+
+<style>
+  .booking-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 33%;
+    position: relative;
+  }
+
+  .step::after {
+    content: "";
+    position: absolute;
+    top: 20px;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background-color: #dee2e6;
+    z-index: 1;
+  }
+
+  .step:last-child::after {
+    display: none;
+  }
+
+  .step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #dee2e6;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    z-index: 2;
+    transition: all 0.3s ease;
+  }
+
+  .step-text {
+    font-size: 0.9rem;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+
+  .step.active .step-number {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .step.active .step-text {
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .trip-summary {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 4px solid var(--primary-color);
+  }
+</style>
 {% endblock %}

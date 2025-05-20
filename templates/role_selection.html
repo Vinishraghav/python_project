@@ -1,0 +1,80 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 text-center mb-5">
+      <h1 class="display-4 fw-bold text-primary">
+        Welcome to Tour Van Booking
+      </h1>
+      <p class="lead">Please select how you would like to continue</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-5">
+      <div class="card role-card fade-in" onclick="selectRole('user')">
+        <div class="card-body text-center p-5">
+          <div class="role-icon mb-4">
+            <i class="fas fa-user fa-4x text-primary"></i>
+          </div>
+          <h2 class="card-title">I'm a Customer</h2>
+          <p class="card-text">Book a tour van for your next adventure</p>
+          <a
+            href="{{ url_for('unified_login', role='user') }}"
+            class="btn btn-primary btn-lg mt-3 stretched-link"
+            >Continue as Customer</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-5">
+      <div class="card role-card fade-in" onclick="selectRole('updator')">
+        <div class="card-body text-center p-5">
+          <div class="role-icon mb-4">
+            <i class="fas fa-shuttle-van fa-4x text-primary"></i>
+          </div>
+          <h2 class="card-title">I'm a Van Owner</h2>
+          <p class="card-text">Manage your vans and view bookings</p>
+          <a
+            href="{{ url_for('unified_login', role='updator') }}"
+            class="btn btn-primary btn-lg mt-3 stretched-link"
+            >Continue as Van Owner</a
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center mt-5">
+    <div class="col-md-8 text-center">
+      <p>Don't have an account yet?</p>
+      <div class="btn-group">
+        <a
+          href="{{ url_for('signup_page', role='user') }}"
+          class="btn btn-outline-primary"
+          >Sign up as Customer</a
+        >
+        <a
+          href="{{ url_for('signup_page', role='updator') }}"
+          class="btn btn-outline-primary"
+          >Sign up as Van Owner</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function selectRole(role) {
+    localStorage.setItem("selectedRole", role);
+  }
+
+  // Add animation delay to cards
+  document.addEventListener("DOMContentLoaded", function () {
+    const cards = document.querySelectorAll(".role-card");
+    cards.forEach((card, index) => {
+      card.style.animationDelay = `${index * 0.2}s`;
+    });
+  });
+</script>
+{% endblock %}
