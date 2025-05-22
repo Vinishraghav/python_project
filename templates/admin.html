@@ -132,6 +132,9 @@
                   <th onclick="sortTable(3, 'vansTable')">
                     Seats <i class="fas fa-sort ms-1"></i>
                   </th>
+                  <th onclick="sortTable(4, 'vansTable')">
+                    Location <i class="fas fa-sort ms-1"></i>
+                  </th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -146,6 +149,15 @@
                   <td>{{ van.name }}</td>
                   <td>${{ van.price }}</td>
                   <td>{{ van.seats }}</td>
+                  <td>
+                    <span class="location-badge">
+                      <i class="fas fa-map-marker-alt me-1"></i>{{ van.location
+                      }}
+                    </span>
+                    <div class="small text-muted">
+                      Updated: {{ van.last_updated }}
+                    </div>
+                  </td>
                   <td>
                     <span class="badge bg-success">Available</span>
                   </td>
@@ -365,6 +377,17 @@
 
   .delete-form button:hover {
     transform: translateY(-2px);
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4a6da7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
   }
 
   /* Tab Styling */

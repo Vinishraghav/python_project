@@ -1,5 +1,4 @@
-{% extends "base.html" %} 
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="container">
   <!-- Booking Steps -->
   <div class="booking-steps mb-4">
@@ -24,13 +23,22 @@
         <h5><i class="fas fa-info-circle me-2"></i>Trip Details</h5>
         <div class="row">
           <div class="col-md-4">
-            <p><strong><i class="fas fa-calendar me-2"></i>Start:</strong> {{ request.args.start_date }}</p>
+            <p>
+              <strong><i class="fas fa-calendar me-2"></i>Start:</strong> {{
+              request.args.start_date }}
+            </p>
           </div>
           <div class="col-md-4">
-            <p><strong><i class="fas fa-calendar-check me-2"></i>End:</strong> {{ request.args.end_date }}</p>
+            <p>
+              <strong><i class="fas fa-calendar-check me-2"></i>End:</strong> {{
+              request.args.end_date }}
+            </p>
           </div>
           <div class="col-md-4">
-            <p><strong><i class="fas fa-users me-2"></i>Passengers:</strong> {{ request.args.passengers }}</p>
+            <p>
+              <strong><i class="fas fa-users me-2"></i>Passengers:</strong> {{
+              request.args.passengers }}
+            </p>
           </div>
         </div>
       </div>
@@ -43,10 +51,14 @@
   </div>
 
   <h2 class="mb-4 text-center">Select Your Perfect Van</h2>
-  
+
   <div class="row">
     {% for van in vans %}
-    <div class="col-md-4 mb-4 van-card-container" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
+    <div
+      class="col-md-4 mb-4 van-card-container"
+      data-aos="fade-up"
+      data-aos-delay="{{ loop.index * 100 }}"
+    >
       <div class="card van-card h-100">
         <div class="van-image">
           <div class="van-price">${{ van.price }}<span>/day</span></div>
@@ -68,29 +80,59 @@
             </div>
           </div>
           <div class="van-description">
-            <p>Perfect for {{ "small groups" if van.seats < 6 else "large groups" }}. Comfortable and reliable for your journey.</p>
+            <p>
+              Perfect for {{ "small groups" if van.seats < 6 else "large groups"
+              }}. Comfortable and reliable for your journey.
+            </p>
           </div>
-          
+
+          <div class="van-location">
+            <div class="location-badge">
+              <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+            </div>
+            <div class="small text-muted mt-1">
+              Last updated: {{ van.last_updated }}
+            </div>
+          </div>
+
           <!-- Calculate total price -->
-          {% set days = 1 %}
-          {% if request.args.start_date and request.args.end_date %}
-            {% set days = 2 %}  <!-- Simplified calculation -->
-          {% endif %}
-          {% set total_price = van.price * days %}
-          
+          {% set days = 1 %} {% if request.args.start_date and
+          request.args.end_date %} {% set days = 2 %}
+          <!-- Simplified calculation -->
+          {% endif %} {% set total_price = van.price * days %}
+
           <div class="price-calculation">
             <div class="calculation-row">
-              <span>${{ van.price }} × {{ days }} day{{ 's' if days > 1 else '' }}</span>
+              <span
+                >${{ van.price }} × {{ days }} day{{ 's' if days > 1 else ''
+                }}</span
+              >
               <span>${{ total_price }}</span>
             </div>
           </div>
         </div>
         <div class="card-footer">
-          <form action="{{ url_for('book') }}" method="post" class="booking-form">
+          <form
+            action="{{ url_for('book') }}"
+            method="post"
+            class="booking-form"
+          >
             <input type="hidden" name="van_id" value="{{ van.id }}" />
-            <input type="hidden" name="start_date" value="{{ request.args.start_date }}" />
-            <input type="hidden" name="end_date" value="{{ request.args.end_date }}" />
-            <input type="hidden" name="passengers" value="{{ request.args.passengers }}" />
+            <input
+              type="hidden"
+              name="start_date"
+              value="{{ request.args.start_date }}"
+            />
+            <input
+              type="hidden"
+              name="end_date"
+              value="{{ request.args.end_date }}"
+            />
+            <input
+              type="hidden"
+              name="passengers"
+              value="{{ request.args.passengers }}"
+            />
             <input type="hidden" name="total_price" value="{{ total_price }}" />
             <button type="submit" class="btn btn-primary w-100 book-now-btn">
               <i class="fas fa-check-circle me-2"></i>Book This Van
@@ -101,12 +143,15 @@
     </div>
     {% endfor %}
   </div>
-  
+
   {% if vans|length == 0 %}
   <div class="no-vans-found text-center py-5">
     <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
     <h3>No Vans Available</h3>
-    <p>Sorry, there are no vans available for your selected dates or passenger count.</p>
+    <p>
+      Sorry, there are no vans available for your selected dates or passenger
+      count.
+    </p>
     <a href="{{ url_for('home') }}" class="btn btn-primary mt-3">
       <i class="fas fa-arrow-left me-2"></i>Change Search Criteria
     </a>
@@ -120,14 +165,30 @@
     transition: all 0.3s ease;
     border: none;
     overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   }
-  
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4a6da7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .van-location {
+    margin-bottom: 1rem;
+  }
+
   .van-card:hover {
     transform: translateY(-10px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
   }
-  
+
   .van-image {
     position: relative;
     height: 100px;
@@ -137,7 +198,7 @@
     align-items: center;
     justify-content: center;
   }
-  
+
   .van-price {
     position: absolute;
     bottom: 0;
@@ -149,52 +210,52 @@
     font-size: 1.2rem;
     border-top-left-radius: var(--border-radius);
   }
-  
+
   .van-price span {
     font-size: 0.8rem;
     font-weight: normal;
   }
-  
+
   .van-features {
     display: flex;
     justify-content: space-between;
     margin: 1rem 0;
   }
-  
+
   .feature {
     display: flex;
     flex-direction: column;
     align-items: center;
     font-size: 0.9rem;
   }
-  
+
   .feature i {
     font-size: 1.2rem;
     color: var(--primary-color);
     margin-bottom: 0.3rem;
   }
-  
+
   .price-calculation {
     background-color: #f8f9fa;
     padding: 0.8rem;
     border-radius: var(--border-radius);
     margin-top: 1rem;
   }
-  
+
   .calculation-row {
     display: flex;
     justify-content: space-between;
     font-size: 0.9rem;
   }
-  
+
   .book-now-btn {
     transition: all 0.3s ease;
   }
-  
+
   .book-now-btn:hover {
     transform: translateY(-2px);
   }
-  
+
   /* Trip Summary */
   .trip-summary {
     background-color: #f8f9fa;
@@ -203,14 +264,14 @@
     margin-bottom: 2rem;
     border-left: 4px solid var(--primary-color);
   }
-  
+
   /* Booking Steps */
   .booking-steps {
     display: flex;
     justify-content: space-between;
     margin-bottom: 2rem;
   }
-  
+
   .step {
     display: flex;
     flex-direction: column;
@@ -218,9 +279,9 @@
     width: 33%;
     position: relative;
   }
-  
+
   .step::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 20px;
     right: -50%;
@@ -229,11 +290,11 @@
     background-color: #dee2e6;
     z-index: 1;
   }
-  
+
   .step:last-child::after {
     display: none;
   }
-  
+
   .step-number {
     width: 40px;
     height: 40px;
@@ -248,18 +309,18 @@
     z-index: 2;
     transition: all 0.3s ease;
   }
-  
+
   .step-text {
     font-size: 0.9rem;
     color: #6c757d;
     transition: all 0.3s ease;
   }
-  
+
   .step.active .step-number {
     background-color: var(--primary-color);
     color: white;
   }
-  
+
   .step.active .step-text {
     color: var(--primary-color);
     font-weight: 600;
@@ -267,33 +328,35 @@
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener("DOMContentLoaded", function () {
     // Add staggered animation to van cards
-    const vanCards = document.querySelectorAll('.van-card-container');
+    const vanCards = document.querySelectorAll(".van-card-container");
     vanCards.forEach((card, index) => {
       setTimeout(() => {
-        card.classList.add('fade-in');
+        card.classList.add("fade-in");
       }, index * 100);
     });
-    
+
     // Add hover effect to booking buttons
-    const bookButtons = document.querySelectorAll('.book-now-btn');
-    bookButtons.forEach(button => {
-      button.addEventListener('mouseenter', function() {
+    const bookButtons = document.querySelectorAll(".book-now-btn");
+    bookButtons.forEach((button) => {
+      button.addEventListener("mouseenter", function () {
         this.innerHTML = '<i class="fas fa-check-circle me-2"></i>Book Now';
       });
-      
-      button.addEventListener('mouseleave', function() {
-        this.innerHTML = '<i class="fas fa-check-circle me-2"></i>Book This Van';
+
+      button.addEventListener("mouseleave", function () {
+        this.innerHTML =
+          '<i class="fas fa-check-circle me-2"></i>Book This Van';
       });
     });
-    
+
     // Add loading animation when booking
-    const bookingForms = document.querySelectorAll('.booking-form');
-    bookingForms.forEach(form => {
-      form.addEventListener('submit', function(e) {
-        const button = this.querySelector('button');
-        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Processing...';
+    const bookingForms = document.querySelectorAll(".booking-form");
+    bookingForms.forEach((form) => {
+      form.addEventListener("submit", function (e) {
+        const button = this.querySelector("button");
+        button.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Processing...';
         button.disabled = true;
       });
     });

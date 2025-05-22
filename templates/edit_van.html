@@ -43,6 +43,22 @@
               required
             />
           </div>
+          <div class="mb-3">
+            <label for="location" class="form-label">Current Location</label>
+            <input
+              type="text"
+              class="form-control"
+              id="location"
+              name="location"
+              value="{{ van.location }}"
+              placeholder="Enter current location"
+              required
+            />
+            <div class="form-text text-muted">
+              <i class="fas fa-info-circle me-1"></i>Last updated: {{
+              van.last_updated }}
+            </div>
+          </div>
           <button type="submit" class="btn btn-primary">Update Van</button>
           <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
             >Cancel</a

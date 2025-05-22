@@ -28,9 +28,9 @@ USERS = [
 
 # Sample data
 VANS = [
-    {"id": 1, "name": "Premium Tour Van", "price": 120, "seats": 8, "available": True},
-    {"id": 2, "name": "Luxury Family Van", "price": 150, "seats": 12, "available": True},
-    {"id": 3, "name": "Eco Adventure Van", "price": 90, "seats": 6, "available": True}
+    {"id": 1, "name": "Premium Tour Van", "price": 120, "seats": 8, "available": True, "location": "New York City", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")},
+    {"id": 2, "name": "Luxury Family Van", "price": 150, "seats": 12, "available": True, "location": "Los Angeles", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")},
+    {"id": 3, "name": "Eco Adventure Van", "price": 90, "seats": 6, "available": True, "location": "Chicago", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")}
 ]
 
 BOOKINGS = []
@@ -318,7 +318,16 @@ def home():
 def list_vans():
     if 'user' not in session:
         return redirect(url_for('unified_login'))
-    return render_template('vans.html', vans=VANS)
+
+    # Get filter parameters
+    location = request.args.get('location', '')
+
+    # Filter vans by location if specified
+    filtered_vans = VANS
+    if location:
+        filtered_vans = [van for van in VANS if van['location'] == location]
+
+    return render_template('vans.html', vans=filtered_vans)
 
 @app.route('/admin/add', methods=['GET', 'POST'])
 def add_van():
@@ -330,9 +339,22 @@ def add_van():
             "id": max([v["id"] for v in VANS]) + 1 if VANS else 1,
             "name": request.form['name'],
             "price": int(request.form['price']),
-            "seats": int(request.form['seats'])
+            "seats": int(request.form['seats']),
+            "available": True,
+            "location": request.form['location'],
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")
         }
         VANS.append(new_van)
+
+        # Emit socket event for real-time updates
+        van_data = {
+            'id': new_van["id"],
+            'name': new_van["name"],
+            'location': new_van["location"],
+            'last_updated': new_van["last_updated"]
+        }
+        socketio.emit('van_update', van_data)
+
         flash("Van added successfully!", "success")
         return redirect(url_for('admin_dashboard'))
     return render_template('add_van.html')
@@ -351,6 +373,18 @@ def edit_van(van_id):
         van["name"] = request.form['name']
         van["price"] = int(request.form['price'])
         van["seats"] = int(request.form['seats'])
+        van["location"] = request.form['location']
+        van["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        # Emit socket event for real-time updates
+        van_data = {
+            'id': van["id"],
+            'name': van["name"],
+            'location': van["location"],
+            'last_updated': van["last_updated"]
+        }
+        socketio.emit('van_update', van_data)
+
         flash("Van updated successfully!", "success")
         return redirect(url_for('admin_dashboard'))
 

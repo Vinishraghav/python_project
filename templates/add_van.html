@@ -40,6 +40,17 @@
               required
             />
           </div>
+          <div class="mb-3">
+            <label for="location" class="form-label">Current Location</label>
+            <input
+              type="text"
+              class="form-control"
+              id="location"
+              name="location"
+              placeholder="Enter current location"
+              required
+            />
+          </div>
           <button type="submit" class="btn btn-success">Add Van</button>
           <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary"
             >Cancel</a
