@@ -58,6 +58,11 @@
                 <i class="fas fa-cog me-1"></i> Admin
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('owner_dashboard') }}">
+                <i class="fas fa-tachometer-alt me-1"></i> Owner Dashboard
+              </a>
+            </li>
             {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('logout') }}">
@@ -173,6 +178,22 @@
           // Update UI if on relevant pages
           if (typeof updateVansList === "function") {
             updateVansList(data);
+          }
+        });
+
+        // Listen for availability updates
+        socket.on("availability_update", function (data) {
+          console.log("Availability update received:", data);
+
+          // Create notification
+          createNotification(
+            "Availability Update",
+            `Van "${data.name}" availability has been updated`
+          );
+
+          // Update UI if on relevant pages
+          if (typeof updateCalendar === "function") {
+            updateCalendar(data);
           }
         });
       });

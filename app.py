@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, auth
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_socketio import SocketIO, emit
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 from dotenv import load_dotenv
@@ -28,9 +28,36 @@ USERS = [
 
 # Sample data
 VANS = [
-    {"id": 1, "name": "Premium Tour Van", "price": 120, "seats": 8, "available": True, "location": "New York City", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")},
-    {"id": 2, "name": "Luxury Family Van", "price": 150, "seats": 12, "available": True, "location": "Los Angeles", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")},
-    {"id": 3, "name": "Eco Adventure Van", "price": 90, "seats": 6, "available": True, "location": "Chicago", "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")}
+    {
+        "id": 1,
+        "name": "Premium Tour Van",
+        "price": 120,
+        "seats": 8,
+        "available": True,
+        "location": "New York City",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "blocked_dates": []
+    },
+    {
+        "id": 2,
+        "name": "Luxury Family Van",
+        "price": 150,
+        "seats": 12,
+        "available": True,
+        "location": "Los Angeles",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "blocked_dates": []
+    },
+    {
+        "id": 3,
+        "name": "Eco Adventure Van",
+        "price": 90,
+        "seats": 6,
+        "available": True,
+        "location": "Chicago",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "blocked_dates": []
+    }
 ]
 
 BOOKINGS = []
@@ -400,6 +427,177 @@ def delete_van(van_id):
     flash("Van deleted successfully!", "success")
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/owner/dashboard')
+def owner_dashboard():
+    if 'user' not in session or session.get('role') != 'updator':
+        flash("Access denied. You must be logged in as a van owner.", "danger")
+        return redirect(url_for('unified_login'))
+
+    # Get vans owned by this user
+    owner_vans = [v for v in VANS]
+
+    # Get bookings for these vans
+    van_ids = [v['id'] for v in owner_vans]
+    bookings = [b for b in BOOKINGS if b['van_id'] in van_ids]
+
+    # Calculate statistics
+    total_bookings = len(bookings)
+    upcoming_bookings = [b for b in bookings if b['start_date'] > datetime.now()]
+    active_bookings = [b for b in bookings if b['start_date'] <= datetime.now() <= b['end_date']]
+    completed_bookings = [b for b in bookings if b['end_date'] < datetime.now()]
+
+    # Calculate revenue
+    total_revenue = sum(b['total_price'] for b in bookings)
+
+    stats = {
+        'total_bookings': total_bookings,
+        'upcoming_bookings': len(upcoming_bookings),
+        'active_bookings': len(active_bookings),
+        'completed_bookings': len(completed_bookings),
+        'total_revenue': total_revenue
+    }
+
+    # Get current month and year for calendar
+    today = datetime.now()
+    current_month = today.month
+    current_year = today.year
+
+    return render_template('owner_dashboard.html',
+                          vans=owner_vans,
+                          bookings=bookings,
+                          stats=stats,
+                          current_month=current_month,
+                          current_year=current_year)
+
+@app.route('/owner/calendar/<int:van_id>')
+def owner_calendar(van_id):
+    if 'user' not in session or session.get('role') != 'updator':
+        flash("Access denied. You must be logged in as a van owner.", "danger")
+        return redirect(url_for('unified_login'))
+
+    van = next((v for v in VANS if v["id"] == van_id), None)
+    if not van:
+        flash("Van not found", "danger")
+        return redirect(url_for('owner_dashboard'))
+
+    # Get bookings for this van
+    bookings = [b for b in BOOKINGS if b['van_id'] == van_id]
+
+    # Get month and year from query parameters or use current date
+    today = datetime.now()
+    month = request.args.get('month', today.month, type=int)
+    year = request.args.get('year', today.year, type=int)
+
+    # Calculate previous and next month/year
+    if month == 1:
+        prev_month = 12
+        prev_year = year - 1
+    else:
+        prev_month = month - 1
+        prev_year = year
+
+    if month == 12:
+        next_month = 1
+        next_year = year + 1
+    else:
+        next_month = month + 1
+        next_year = year
+
+    # Get month name
+    month_name = datetime(year, month, 1).strftime('%B')
+
+    # Get blocked dates for this van (if any)
+    blocked_dates = van.get('blocked_dates', [])
+
+    # Generate calendar data
+    import calendar
+    cal = calendar.monthcalendar(year, month)
+
+    # Convert calendar data to a more usable format
+    calendar_weeks = []
+    for week in cal:
+        week_data = []
+        for day in week:
+            if day == 0:
+                # Day is outside the month
+                week_data.append({'date': None})
+            else:
+                date = datetime(year, month, day)
+                date_str = date.strftime('%Y-%m-%d')
+
+                # Check if this date has a booking
+                has_booking = any(
+                    b['start_date'] <= date <= b['end_date'] for b in bookings
+                )
+
+                week_data.append({
+                    'date': date,
+                    'date_str': date_str,
+                    'today': date.date() == today.date(),
+                    'has_booking': has_booking
+                })
+        calendar_weeks.append(week_data)
+
+    return render_template('owner_calendar.html',
+                          van=van,
+                          bookings=bookings,
+                          month=month,
+                          year=year,
+                          month_name=month_name,
+                          prev_month=prev_month,
+                          prev_year=prev_year,
+                          next_month=next_month,
+                          next_year=next_year,
+                          calendar_weeks=calendar_weeks,
+                          blocked_dates=blocked_dates,
+                          now=today)
+
+@app.route('/owner/update_availability/<int:van_id>', methods=['POST'])
+def update_availability(van_id):
+    if 'user' not in session or session.get('role') != 'updator':
+        flash("Access denied. You must be logged in as a van owner.", "danger")
+        return redirect(url_for('unified_login'))
+
+    van = next((v for v in VANS if v["id"] == van_id), None)
+    if not van:
+        flash("Van not found", "danger")
+        return redirect(url_for('owner_dashboard'))
+
+    # Get the date and availability status from the form
+    date_str = request.form.get('date')
+    action = request.form.get('action')  # 'block' or 'unblock'
+
+    if not date_str or not action:
+        flash("Invalid request", "danger")
+        return redirect(url_for('owner_calendar', van_id=van_id))
+
+    # Convert date string to datetime object
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+
+    # Initialize blocked_dates if it doesn't exist
+    if 'blocked_dates' not in van:
+        van['blocked_dates'] = []
+
+    # Update availability
+    if action == 'block':
+        if date_str not in van['blocked_dates']:
+            van['blocked_dates'].append(date_str)
+            flash(f"Date {date_str} has been blocked", "success")
+    elif action == 'unblock':
+        if date_str in van['blocked_dates']:
+            van['blocked_dates'].remove(date_str)
+            flash(f"Date {date_str} has been unblocked", "success")
+
+    # Emit socket event for real-time updates
+    van_data = {
+        'id': van["id"],
+        'name': van["name"],
+        'blocked_dates': van.get('blocked_dates', [])
+    }
+    socketio.emit('availability_update', van_data)
+
+    return redirect(url_for('owner_calendar', van_id=van_id))
+
 # Original book route replaced by the Socket.IO version below
 
 @app.route('/booking/<int:booking_id>')
@@ -417,7 +615,12 @@ def booking_confirmation(booking_id):
 def unified_login():
     if session.get('user'):
         if session.get('role') == 'updator':
-            return redirect(url_for('admin_dashboard'))
+            # Check if the request has a 'redirect' parameter
+            redirect_to = request.args.get('redirect', '')
+            if redirect_to == 'owner':
+                return redirect(url_for('owner_dashboard'))
+            else:
+                return redirect(url_for('admin_dashboard'))
         return redirect(url_for('home'))
     return render_template('unified_login.html')
 
@@ -473,6 +676,23 @@ def book():
     van = next((v for v in VANS if v['id'] == van_id), None)
 
     if van:
+        # Check if any of the dates are blocked
+        blocked_dates = van.get('blocked_dates', [])
+
+        # Generate a list of all dates in the booking range
+        booking_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            booking_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+
+        # Check if any booking date is in the blocked dates
+        blocked = any(date in blocked_dates for date in booking_dates)
+
+        if blocked:
+            flash('Some of the selected dates are not available for this van', 'danger')
+            return redirect(url_for('list_vans'))
+
         # Calculate total price if not provided
         if not total_price:
             days = (end_date - start_date).days

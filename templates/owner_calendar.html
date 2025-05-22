@@ -1,0 +1,320 @@
+{% extends 'base.html' %} {% block title %}Van Availability Calendar{% endblock
+%} {% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1 class="display-5 fw-bold">
+        <i class="fas fa-calendar-alt me-2 text-primary"></i>Availability
+        Calendar
+      </h1>
+      <p class="lead text-muted">Manage availability for {{ van.name }}</p>
+    </div>
+    <div
+      class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end"
+    >
+      <a
+        href="{{ url_for('owner_dashboard') }}"
+        class="btn btn-outline-primary me-2"
+      >
+        <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+      </a>
+      <a
+        href="{{ url_for('edit_van', van_id=van.id) }}"
+        class="btn btn-outline-secondary"
+      >
+        <i class="fas fa-edit me-1"></i>Edit Van
+      </a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <!-- Calendar Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-calendar text-primary me-2"></i>{{ month_name }}
+              {{ year }}
+            </h5>
+            <div>
+              <a
+                href="{{ url_for('owner_calendar', van_id=van.id, month=prev_month, year=prev_year) }}"
+                class="btn btn-sm btn-outline-secondary me-2"
+              >
+                <i class="fas fa-chevron-left me-1"></i>Previous
+              </a>
+              <a
+                href="{{ url_for('owner_calendar', van_id=van.id, month=next_month, year=next_year) }}"
+                class="btn btn-sm btn-outline-secondary"
+              >
+                Next<i class="fas fa-chevron-right ms-1"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="calendar-container">
+            <div class="calendar-header">
+              <div>Sun</div>
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div>Sat</div>
+            </div>
+            <div class="calendar-grid">
+              {% for week in calendar_weeks %} {% for day in week %} {% if
+              day.date %}
+              <div
+                class="calendar-day {% if day.today %}today{% endif %} {% if day.date in blocked_dates %}blocked{% endif %} {% if day.has_booking %}booked{% endif %}"
+              >
+                <div class="day-number">{{ day.date.day }}</div>
+                <div class="day-status">
+                  {% if day.date_str in blocked_dates %}
+                  <span class="badge bg-danger">Blocked</span>
+                  <form
+                    action="{{ url_for('update_availability', van_id=van.id) }}"
+                    method="post"
+                    class="mt-1"
+                  >
+                    <input
+                      type="hidden"
+                      name="date"
+                      value="{{ day.date_str }}"
+                    />
+                    <input type="hidden" name="action" value="unblock" />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-success"
+                    >
+                      Unblock
+                    </button>
+                  </form>
+                  {% elif day.has_booking %}
+                  <span class="badge bg-primary">Booked</span>
+                  {% else %}
+                  <form
+                    action="{{ url_for('update_availability', van_id=van.id) }}"
+                    method="post"
+                  >
+                    <input
+                      type="hidden"
+                      name="date"
+                      value="{{ day.date_str }}"
+                    />
+                    <input type="hidden" name="action" value="block" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      Block
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </div>
+              {% else %}
+              <div class="calendar-day empty"></div>
+              {% endif %} {% endfor %} {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <!-- Van Details Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-shuttle-van text-primary me-2"></i>Van Details
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <div class="fw-bold text-muted mb-1">Name</div>
+            <div>{{ van.name }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="fw-bold text-muted mb-1">Price per Day</div>
+            <div>${{ van.price }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="fw-bold text-muted mb-1">Seats</div>
+            <div>{{ van.seats }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="fw-bold text-muted mb-1">Current Location</div>
+            <div class="location-badge">
+              <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+            </div>
+            <div class="small text-muted mt-1">
+              Updated: {{ van.last_updated }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming Bookings Card -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-calendar-check text-primary me-2"></i>Upcoming
+            Bookings
+          </h5>
+        </div>
+        <div class="card-body">
+          {% for booking in bookings %} {% if booking.start_date > now %}
+          <div class="booking-item mb-3 pb-3 border-bottom">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">{{ booking.user }}</div>
+                <div class="text-muted small">
+                  {{ booking.start_date.strftime('%b %d') }} - {{
+                  booking.end_date.strftime('%b %d, %Y') }}
+                </div>
+                <div class="mt-1">
+                  <span class="badge bg-success">{{ booking.status }}</span>
+                  <span class="text-muted ms-2"
+                    >{{ booking.passengers }} passengers</span
+                  >
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold">${{ booking.total_price }}</div>
+              </div>
+            </div>
+          </div>
+          {% endif %} {% else %}
+          <div class="text-center text-muted py-3">No upcoming bookings</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Calendar Styling */
+  .calendar-container {
+    width: 100%;
+  }
+
+  .calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #6c757d;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+
+  .calendar-day {
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    min-height: 100px;
+    padding: 8px;
+    position: relative;
+  }
+
+  .calendar-day.empty {
+    background-color: #f8f9fa;
+    border: 1px dashed #e9ecef;
+  }
+
+  .calendar-day.today {
+    background-color: #f0f8ff;
+    border-color: #4a6da7;
+  }
+
+  .calendar-day.blocked {
+    background-color: #fff5f5;
+  }
+
+  .calendar-day.booked {
+    background-color: #f0f9ff;
+  }
+
+  .day-number {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .day-status {
+    font-size: 0.8rem;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4a6da7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+</style>
+<!-- Calendar Update Script -->
+<script>
+  // Function to update the calendar when availability changes
+  function updateCalendar(data) {
+    // Only update if this is the calendar for the updated van
+    const currentVanId = {{ van.id }};
+    if (data.id !== currentVanId) return;
+
+    // Get all calendar days
+    const calendarDays = document.querySelectorAll('.calendar-day');
+
+    // Update each day's status based on the new blocked dates
+    calendarDays.forEach(day => {
+      if (!day.classList.contains('empty')) {
+        // Get the date from the day's data attribute
+        const dateStr = day.querySelector('input[name="date"]')?.value;
+
+        if (dateStr) {
+          // Check if this date is now blocked or unblocked
+          const isBlocked = data.blocked_dates.includes(dateStr);
+
+          // Update the UI accordingly
+          if (isBlocked && !day.classList.contains('blocked')) {
+            // Date is now blocked
+            day.classList.add('blocked');
+            day.querySelector('.day-status').innerHTML = `
+              <span class="badge bg-danger">Blocked</span>
+              <form action="{{ url_for('update_availability', van_id=van.id) }}" method="post" class="mt-1">
+                <input type="hidden" name="date" value="${dateStr}">
+                <input type="hidden" name="action" value="unblock">
+                <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
+              </form>
+            `;
+          } else if (!isBlocked && day.classList.contains('blocked')) {
+            // Date is now unblocked
+            day.classList.remove('blocked');
+
+            // Check if this day has a booking
+            if (day.classList.contains('booked')) {
+              day.querySelector('.day-status').innerHTML = `
+                <span class="badge bg-primary">Booked</span>
+              `;
+            } else {
+              day.querySelector('.day-status').innerHTML = `
+                <form action="{{ url_for('update_availability', van_id=van.id) }}" method="post">
+                  <input type="hidden" name="date" value="${dateStr}">
+                  <input type="hidden" name="action" value="block">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Block</button>
+                </form>
+              `;
+            }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}
