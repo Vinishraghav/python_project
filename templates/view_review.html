@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block title %}Review - {{ van.name }} - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-star text-primary me-2"></i>Your Review
+          </h5>
+          <div>
+            <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-arrow-left me-1"></i>Back to Bookings
+            </a>
+          </div>
+        </div>
+        <div class="card-body p-4">
+          <div class="booking-summary mb-4">
+            <div class="d-flex align-items-center mb-3">
+              <div class="flex-shrink-0">
+                <div class="van-icon">
+                  <i class="fas fa-shuttle-van fa-2x text-primary"></i>
+                </div>
+              </div>
+              <div class="flex-grow-1 ms-3">
+                <h5 class="mb-1">{{ van.name }}</h5>
+                <div class="location-badge mb-2">
+                  <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+                </div>
+              </div>
+            </div>
+            <div class="booking-details small text-muted">
+              <div class="row mb-1">
+                <div class="col-6">Booking Reference:</div>
+                <div class="col-6 text-end">{{ '%06d'|format(booking.id) }}</div>
+              </div>
+              <div class="row mb-1">
+                <div class="col-6">Trip Dates:</div>
+                <div class="col-6 text-end">
+                  {{ booking.start_date.strftime('%b %d') }} - {{ booking.end_date.strftime('%b %d, %Y') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-content mb-4">
+            <div class="review-header d-flex justify-content-between align-items-center mb-3">
+              <div class="review-user d-flex align-items-center">
+                <div class="user-avatar me-2">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div>
+                  <div class="user-name">{{ review.user_name }}</div>
+                  <div class="review-date text-muted small">{{ review.date.strftime('%B %d, %Y') }}</div>
+                </div>
+              </div>
+              <div class="review-rating">
+                <div class="stars-display">
+                  {% for i in range(1, 6) %}
+                    {% if i <= review.rating %}
+                      <i class="fas fa-star text-warning"></i>
+                    {% else %}
+                      <i class="far fa-star text-warning"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <h5 class="review-title mb-3">{{ review.title }}</h5>
+            <p class="review-text mb-4">{{ review.content }}</p>
+
+            <div class="review-categories mb-3">
+              <div class="row">
+                <div class="col-md-3 col-6 mb-3">
+                  <div class="category-rating-item">
+                    <div class="category-name">Cleanliness</div>
+                    <div class="category-stars">
+                      {% for i in range(1, 6) %}
+                        {% if i <= review.cleanliness %}
+                          <i class="fas fa-star text-warning small"></i>
+                        {% else %}
+                          <i class="far fa-star text-warning small"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="category-score">{{ review.cleanliness }}/5</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                  <div class="category-rating-item">
+                    <div class="category-name">Comfort</div>
+                    <div class="category-stars">
+                      {% for i in range(1, 6) %}
+                        {% if i <= review.comfort %}
+                          <i class="fas fa-star text-warning small"></i>
+                        {% else %}
+                          <i class="far fa-star text-warning small"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="category-score">{{ review.comfort }}/5</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                  <div class="category-rating-item">
+                    <div class="category-name">Value</div>
+                    <div class="category-stars">
+                      {% for i in range(1, 6) %}
+                        {% if i <= review.value %}
+                          <i class="fas fa-star text-warning small"></i>
+                        {% else %}
+                          <i class="far fa-star text-warning small"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="category-score">{{ review.value }}/5</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                  <div class="category-rating-item">
+                    <div class="category-name">Service</div>
+                    <div class="category-stars">
+                      {% for i in range(1, 6) %}
+                        {% if i <= review.service %}
+                          <i class="fas fa-star text-warning small"></i>
+                        {% else %}
+                          <i class="far fa-star text-warning small"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="category-score">{{ review.service }}/5</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="review-recommend mb-4">
+              {% if review.recommend %}
+                <div class="recommend-badge bg-success bg-opacity-10 text-success p-2 rounded">
+                  <i class="fas fa-thumbs-up me-2"></i>You would recommend this van to others
+                </div>
+              {% else %}
+                <div class="recommend-badge bg-danger bg-opacity-10 text-danger p-2 rounded">
+                  <i class="fas fa-thumbs-down me-2"></i>You would not recommend this van to others
+                </div>
+              {% endif %}
+            </div>
+
+            {% if review.photos %}
+              <div class="review-photos mb-4">
+                <h6 class="mb-3">Your Photos</h6>
+                <div class="row g-2">
+                  {% for photo in review.photos %}
+                    <div class="col-4 col-md-3">
+                      <a href="{{ photo }}" class="review-photo" data-lightbox="review-{{ review.id }}">
+                        <img src="{{ photo }}" class="img-fluid rounded" alt="Review photo">
+                      </a>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            <div class="review-status mb-4">
+              <h6 class="mb-2">Review Status</h6>
+              {% if review.status == 'approved' %}
+                <div class="status-badge bg-success bg-opacity-10 text-success p-2 rounded">
+                  <i class="fas fa-check-circle me-2"></i>Your review has been approved and is publicly visible
+                </div>
+              {% elif review.status == 'pending' %}
+                <div class="status-badge bg-warning bg-opacity-10 text-warning p-2 rounded">
+                  <i class="fas fa-clock me-2"></i>Your review is pending approval
+                </div>
+              {% else %}
+                <div class="status-badge bg-danger bg-opacity-10 text-danger p-2 rounded">
+                  <i class="fas fa-times-circle me-2"></i>Your review has been rejected
+                </div>
+              {% endif %}
+            </div>
+
+            {% if review.owner_response %}
+              <div class="owner-response mt-4">
+                <h6 class="mb-3">Owner's Response</h6>
+                <div class="response-content p-3 bg-light rounded">
+                  <div class="response-header d-flex align-items-center mb-2">
+                    <div class="owner-avatar me-2">
+                      <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div>
+                      <div class="owner-name">Van Owner</div>
+                      <div class="response-date text-muted small">{{ review.response_date.strftime('%B %d, %Y') }}</div>
+                    </div>
+                  </div>
+                  <p class="mb-0">{{ review.owner_response }}</p>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left me-1"></i>Back to Bookings
+            </a>
+            <a href="{{ url_for('van_reviews', van_id=van.id) }}" class="btn btn-primary">
+              <i class="fas fa-comments me-1"></i>See All Reviews
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Van Icon */
+  .van-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f0f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  /* User Avatar */
+  .user-avatar, .owner-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .owner-avatar {
+    background-color: #e6f2ff;
+    color: var(--primary-color);
+  }
+
+  /* Category Ratings */
+  .category-rating-item {
+    text-align: center;
+  }
+
+  .category-name {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+
+  .category-score {
+    font-weight: bold;
+  }
+
+  /* Review Photos */
+  .review-photo {
+    display: block;
+    height: 0;
+    padding-bottom: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .review-photo img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
+{% endblock %}

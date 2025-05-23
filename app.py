@@ -68,6 +68,9 @@ VANS = [
 # Sample bookings with payment information
 BOOKINGS = []
 
+# Sample reviews
+REVIEWS = []
+
 # Payment statuses
 PAYMENT_STATUS = {
     'PENDING': 'pending',
@@ -75,6 +78,13 @@ PAYMENT_STATUS = {
     'COMPLETED': 'completed',
     'FAILED': 'failed',
     'REFUNDED': 'refunded'
+}
+
+# Review statuses
+REVIEW_STATUS = {
+    'PENDING': 'pending',
+    'APPROVED': 'approved',
+    'REJECTED': 'rejected'
 }
 
 @app.route('/')
@@ -368,6 +378,20 @@ def list_vans():
     filtered_vans = VANS
     if location:
         filtered_vans = [van for van in VANS if van['location'] == location]
+
+    # Add rating information to vans
+    for van in filtered_vans:
+        # Get all approved reviews for this van
+        van_reviews = [r for r in REVIEWS if r['van_id'] == van['id'] and r['status'] == REVIEW_STATUS['APPROVED']]
+
+        # Calculate average rating
+        if van_reviews:
+            avg_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
+            van['avg_rating'] = avg_rating
+            van['review_count'] = len(van_reviews)
+        else:
+            van['avg_rating'] = 0
+            van['review_count'] = 0
 
     return render_template('vans.html', vans=filtered_vans)
 
@@ -811,6 +835,277 @@ def payment_receipt(booking_id):
     flash('Booking not found', 'danger')
     return redirect(url_for('home'))
 
+@app.route('/my-bookings')
+def my_bookings():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    # Get all bookings for the current user
+    user_bookings = [b for b in BOOKINGS if b['user'] == session['user']]
+
+    # Create a dictionary of vans for easy lookup
+    vans_dict = {van['id']: van for van in VANS}
+
+    # Get the current date for determining booking status
+    current_date = datetime.now()
+
+    # Get list of bookings that have been reviewed
+    reviewed_bookings = [review['booking_id'] for review in REVIEWS if review['user'] == session['user']]
+
+    return render_template('my_bookings.html',
+                          bookings=user_bookings,
+                          vans_dict=vans_dict,
+                          current_date=current_date,
+                          reviewed_bookings=reviewed_bookings)
+
+@app.route('/submit-review/<int:booking_id>', methods=['GET', 'POST'])
+def submit_review(booking_id):
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+        van = next((v for v in VANS if v['id'] == booking['van_id']), None)
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            flash('Access denied', 'danger')
+            return redirect(url_for('home'))
+
+        # Check if booking is completed
+        if booking['end_date'] > datetime.now():
+            flash('You can only review completed bookings', 'warning')
+            return redirect(url_for('my_bookings'))
+
+        # Check if user has already reviewed this booking
+        existing_review = next((r for r in REVIEWS if r['booking_id'] == booking_id and r['user'] == session['user']), None)
+        if existing_review:
+            flash('You have already reviewed this booking', 'info')
+            return redirect(url_for('view_review', review_id=existing_review['id']))
+
+        if request.method == 'POST':
+            # Get form data
+            rating = int(request.form.get('rating'))
+            title = request.form.get('title')
+            content = request.form.get('content')
+            cleanliness = int(request.form.get('cleanliness', 0))
+            comfort = int(request.form.get('comfort', 0))
+            value = int(request.form.get('value', 0))
+            service = int(request.form.get('service', 0))
+            recommend = request.form.get('recommend') == 'yes'
+
+            # Create new review
+            review_id = len(REVIEWS)
+            review = {
+                'id': review_id,
+                'booking_id': booking_id,
+                'van_id': booking['van_id'],
+                'user': session['user'],
+                'user_name': session['user'].split('@')[0],
+                'rating': rating,
+                'title': title,
+                'content': content,
+                'cleanliness': cleanliness,
+                'comfort': comfort,
+                'value': value,
+                'service': service,
+                'recommend': recommend,
+                'date': datetime.now(),
+                'status': REVIEW_STATUS['PENDING'],
+                'photos': [],
+                'owner_response': None,
+                'response_date': None
+            }
+
+            REVIEWS.append(review)
+
+            # Emit socket event for real-time updates
+            review_data = {
+                'id': review_id,
+                'van_id': booking['van_id'],
+                'van_name': van['name'],
+                'rating': rating,
+                'user': session['user']
+            }
+            socketio.emit('review_update', review_data)
+
+            flash('Your review has been submitted successfully', 'success')
+            return redirect(url_for('view_review', review_id=review_id))
+
+        return render_template('submit_review.html', booking=booking, van=van)
+
+    flash('Booking not found', 'danger')
+    return redirect(url_for('my_bookings'))
+
+@app.route('/view-review/<int:review_id>')
+def view_review(review_id):
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    if review_id < len(REVIEWS):
+        review = REVIEWS[review_id]
+
+        # Check if this review belongs to the current user or if the user is the van owner
+        is_owner = session.get('role') == 'updator'
+        if review['user'] != session['user'] and not is_owner:
+            flash('Access denied', 'danger')
+            return redirect(url_for('home'))
+
+        booking = next((b for b in BOOKINGS if b['id'] == review['booking_id']), None)
+        van = next((v for v in VANS if v['id'] == review['van_id']), None)
+
+        return render_template('view_review.html', review=review, booking=booking, van=van)
+
+    flash('Review not found', 'danger')
+    return redirect(url_for('my_bookings'))
+
+@app.route('/van-reviews/<int:van_id>')
+def van_reviews(van_id):
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    van = next((v for v in VANS if v['id'] == van_id), None)
+    if not van:
+        flash('Van not found', 'danger')
+        return redirect(url_for('list_vans'))
+
+    # Get all approved reviews for this van
+    van_reviews = [r for r in REVIEWS if r['van_id'] == van_id and r['status'] == REVIEW_STATUS['APPROVED']]
+
+    # Calculate average rating
+    if van_reviews:
+        average_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
+    else:
+        average_rating = 0
+
+    # Calculate rating counts
+    rating_counts = {}
+    for i in range(1, 6):
+        rating_counts[i] = len([r for r in van_reviews if r['rating'] == i])
+
+    # Calculate category ratings
+    category_ratings = {
+        'cleanliness': sum(r['cleanliness'] for r in van_reviews) / len(van_reviews) if van_reviews else 0,
+        'comfort': sum(r['comfort'] for r in van_reviews) / len(van_reviews) if van_reviews else 0,
+        'value': sum(r['value'] for r in van_reviews) / len(van_reviews) if van_reviews else 0,
+        'service': sum(r['service'] for r in van_reviews) / len(van_reviews) if van_reviews else 0
+    }
+
+    # Calculate recommendation percentage
+    if van_reviews:
+        recommend_count = len([r for r in van_reviews if r['recommend']])
+        recommend_percentage = int((recommend_count / len(van_reviews)) * 100)
+    else:
+        recommend_percentage = 0
+
+    return render_template('reviews.html',
+                          van=van,
+                          reviews=van_reviews,
+                          average_rating=average_rating,
+                          rating_counts=rating_counts,
+                          category_ratings=category_ratings,
+                          recommend_percentage=recommend_percentage)
+
+@app.route('/owner/reviews')
+def owner_reviews():
+    if 'user' not in session or session.get('role') != 'updator':
+        flash("Access denied. You must be logged in as a van owner.", "danger")
+        return redirect(url_for('unified_login'))
+
+    # Get all vans owned by this user
+    owner_vans = [v for v in VANS]
+
+    # Get all reviews for these vans
+    van_ids = [v['id'] for v in owner_vans]
+    owner_reviews = [r for r in REVIEWS if r['van_id'] in van_ids]
+
+    # Calculate review statistics
+    stats = {
+        'total_reviews': len(owner_reviews),
+        'average_rating': sum(r['rating'] for r in owner_reviews) / len(owner_reviews) if owner_reviews else 0,
+        'recommend_percentage': int((len([r for r in owner_reviews if r['recommend']]) / len(owner_reviews)) * 100) if owner_reviews else 0,
+        'response_rate': int((len([r for r in owner_reviews if r['owner_response']]) / len(owner_reviews)) * 100) if owner_reviews else 0
+    }
+
+    return render_template('owner_reviews.html', reviews=owner_reviews, stats=stats)
+
+@app.route('/submit-response', methods=['POST'])
+def submit_response():
+    if 'user' not in session or session.get('role') != 'updator':
+        flash("Access denied. You must be logged in as a van owner.", "danger")
+        return redirect(url_for('unified_login'))
+
+    review_id = int(request.form.get('review_id'))
+    response = request.form.get('response')
+
+    if review_id < len(REVIEWS):
+        review = REVIEWS[review_id]
+
+        # Get the van to check ownership
+        van = next((v for v in VANS if v['id'] == review['van_id']), None)
+        if not van:
+            flash('Van not found', 'danger')
+            return redirect(url_for('owner_reviews'))
+
+        # Update the review with the owner's response
+        review['owner_response'] = response
+        review['response_date'] = datetime.now()
+
+        # Emit socket event for real-time updates
+        response_data = {
+            'review_id': review_id,
+            'van_id': review['van_id'],
+            'response': response
+        }
+        socketio.emit('review_response_update', response_data)
+
+        flash('Your response has been submitted successfully', 'success')
+        return redirect(url_for('owner_reviews'))
+
+    flash('Review not found', 'danger')
+    return redirect(url_for('owner_reviews'))
+
+@app.route('/cancel-booking', methods=['POST'])
+def cancel_booking():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    booking_id = int(request.form.get('booking_id'))
+    reason = request.form.get('reason')
+    other_reason = request.form.get('other_reason')
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            flash('Access denied', 'danger')
+            return redirect(url_for('home'))
+
+        # Check if booking is upcoming
+        if booking['start_date'] < datetime.now():
+            flash('You can only cancel upcoming bookings', 'warning')
+            return redirect(url_for('my_bookings'))
+
+        # Update booking status
+        booking['status'] = 'cancelled'
+        booking['cancel_reason'] = other_reason if reason == 'other' else reason
+        booking['cancel_date'] = datetime.now()
+
+        # Emit socket event for real-time updates
+        cancel_data = {
+            'booking_id': booking_id,
+            'van_id': booking['van_id'],
+            'status': 'cancelled'
+        }
+        socketio.emit('booking_update', cancel_data)
+
+        flash('Your booking has been cancelled successfully', 'success')
+        return redirect(url_for('my_bookings'))
+
+    flash('Booking not found', 'danger')
+    return redirect(url_for('my_bookings'))
+
 @app.route('/unified_login', methods=['GET', 'POST'])
 def unified_login():
     if session.get('user'):
@@ -862,6 +1157,18 @@ def handle_van_update(data):
 def handle_payment_update(data):
     # Broadcast the payment update to all connected clients
     emit('payment_update', data, broadcast=True)
+
+# Event for review updates
+@socketio.on('review_update')
+def handle_review_update(data):
+    # Broadcast the review update to all connected clients
+    emit('review_update', data, broadcast=True)
+
+# Event for review response updates
+@socketio.on('review_response_update')
+def handle_review_response_update(data):
+    # Broadcast the review response update to all connected clients
+    emit('review_response_update', data, broadcast=True)
 
 # Update the book route to emit a socket event
 @app.route('/book', methods=['POST'])

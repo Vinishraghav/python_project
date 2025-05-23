@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Reviews - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-lg-2 mb-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="owner-sidebar">
+            <div class="sidebar-header p-3 border-bottom">
+              <h5 class="mb-0">Owner Dashboard</h5>
+            </div>
+            <div class="sidebar-menu">
+              <a href="{{ url_for('owner_dashboard') }}" class="sidebar-item">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+              </a>
+              <a href="{{ url_for('owner_dashboard') }}#vans" class="sidebar-item">
+                <i class="fas fa-shuttle-van me-2"></i>My Vans
+              </a>
+              <a href="{{ url_for('owner_dashboard') }}#bookings" class="sidebar-item">
+                <i class="fas fa-calendar-check me-2"></i>Bookings
+              </a>
+              <a href="{{ url_for('owner_reviews') }}" class="sidebar-item active">
+                <i class="fas fa-star me-2"></i>Reviews
+              </a>
+              <a href="{{ url_for('owner_dashboard') }}#earnings" class="sidebar-item">
+                <i class="fas fa-dollar-sign me-2"></i>Earnings
+              </a>
+              <a href="{{ url_for('owner_dashboard') }}#settings" class="sidebar-item">
+                <i class="fas fa-cog me-2"></i>Settings
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-10">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+          <i class="fas fa-star text-primary me-2"></i>Manage Reviews
+        </h1>
+        <div class="d-flex">
+          <div class="dropdown me-2">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-filter me-1"></i>Filter: <span id="current-filter">All Reviews</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="filterDropdown">
+              <li><a class="dropdown-item filter-option" href="#" data-filter="all">All Reviews</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="pending">Pending Response</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="responded">Responded</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="positive">Positive (4-5 ★)</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="neutral">Neutral (3 ★)</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="negative">Negative (1-2 ★)</a></li>
+            </ul>
+          </div>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-sort me-1"></i>Sort: <span id="current-sort">Most Recent</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+              <li><a class="dropdown-item sort-option" href="#" data-sort="recent">Most Recent</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="oldest">Oldest First</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="highest">Highest Rating</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="lowest">Lowest Rating</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reviews Stats -->
+      <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                  <i class="fas fa-star text-primary fa-2x"></i>
+                </div>
+                <div>
+                  <h6 class="text-muted mb-1">Average Rating</h6>
+                  <h3 class="mb-0">{{ "%.1f"|format(stats.average_rating) }}</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                  <i class="fas fa-comments text-success fa-2x"></i>
+                </div>
+                <div>
+                  <h6 class="text-muted mb-1">Total Reviews</h6>
+                  <h3 class="mb-0">{{ stats.total_reviews }}</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                  <i class="fas fa-thumbs-up text-warning fa-2x"></i>
+                </div>
+                <div>
+                  <h6 class="text-muted mb-1">Recommendation</h6>
+                  <h3 class="mb-0">{{ stats.recommend_percentage }}%</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                  <i class="fas fa-reply text-info fa-2x"></i>
+                </div>
+                <div>
+                  <h6 class="text-muted mb-1">Response Rate</h6>
+                  <h3 class="mb-0">{{ stats.response_rate }}%</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reviews List -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-comments text-primary me-2"></i>All Reviews
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          {% if reviews %}
+            <div class="reviews-list">
+              {% for review in reviews %}
+                <div class="review-item p-4 border-bottom" 
+                     data-rating="{{ review.rating }}" 
+                     data-status="{{ 'responded' if review.owner_response else 'pending' }}"
+                     data-van="{{ review.van_id }}">
+                  <div class="d-flex justify-content-between mb-3">
+                    <div class="review-user">
+                      <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                      </div>
+                      <div class="user-info">
+                        <div class="user-name">{{ review.user_name }}</div>
+                        <div class="review-date text-muted small">
+                          {{ review.date.strftime('%B %d, %Y') }}
+                          <span class="ms-2">•</span>
+                          <span class="ms-2">{{ review.van_name }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="review-rating">
+                      <div class="stars-display">
+                        {% for i in range(1, 6) %}
+                          {% if i <= review.rating %}
+                            <i class="fas fa-star text-warning"></i>
+                          {% else %}
+                            <i class="far fa-star text-warning"></i>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="review-title mb-2">{{ review.title }}</h6>
+                  <p class="review-content mb-3">{{ review.content }}</p>
+                  
+                  {% if review.photos %}
+                    <div class="review-photos mb-3">
+                      <div class="row g-2">
+                        {% for photo in review.photos %}
+                          <div class="col-4 col-md-2">
+                            <a href="{{ photo }}" class="review-photo" data-lightbox="review-{{ review.id }}">
+                              <img src="{{ photo }}" class="img-fluid rounded" alt="Review photo">
+                            </a>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+                  
+                  <div class="review-categories small text-muted">
+                    <span class="me-3"><i class="fas fa-broom me-1"></i>Cleanliness: {{ review.cleanliness }}/5</span>
+                    <span class="me-3"><i class="fas fa-couch me-1"></i>Comfort: {{ review.comfort }}/5</span>
+                    <span class="me-3"><i class="fas fa-dollar-sign me-1"></i>Value: {{ review.value }}/5</span>
+                    <span><i class="fas fa-concierge-bell me-1"></i>Service: {{ review.service }}/5</span>
+                  </div>
+                  
+                  <div class="review-recommend mt-2 mb-3">
+                    {% if review.recommend %}
+                      <span class="badge bg-success"><i class="fas fa-thumbs-up me-1"></i>Would recommend</span>
+                    {% else %}
+                      <span class="badge bg-danger"><i class="fas fa-thumbs-down me-1"></i>Would not recommend</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if review.owner_response %}
+                    <div class="owner-response mt-3 mb-3">
+                      <div class="response-header d-flex align-items-center mb-2">
+                        <div class="owner-avatar me-2">
+                          <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div>
+                          <div class="owner-name">Your Response</div>
+                          <div class="response-date text-muted small">{{ review.response_date.strftime('%B %d, %Y') }}</div>
+                        </div>
+                      </div>
+                      <div class="response-content p-3 bg-light rounded">
+                        {{ review.owner_response }}
+                      </div>
+                      <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary edit-response-btn" data-review-id="{{ review.id }}">
+                          <i class="fas fa-edit me-1"></i>Edit Response
+                        </button>
+                      </div>
+                    </div>
+                  {% else %}
+                    <div class="mt-3">
+                      <button class="btn btn-primary respond-btn" data-review-id="{{ review.id }}" data-bs-toggle="modal" data-bs-target="#responseModal">
+                        <i class="fas fa-reply me-1"></i>Respond to Review
+                      </button>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-center py-5">
+              <div class="empty-reviews-icon mb-3">
+                <i class="far fa-comment-dots fa-4x text-muted"></i>
+              </div>
+              <h5>No Reviews Yet</h5>
+              <p class="text-muted">You haven't received any reviews yet.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Response Modal -->
+<div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="responseModalLabel">Respond to Review</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="review-preview" class="mb-4 p-3 bg-light rounded"></div>
+        <form id="response-form" action="{{ url_for('submit_response') }}" method="POST">
+          <input type="hidden" id="review-id" name="review_id">
+          <div class="mb-3">
+            <label for="response-text" class="form-label">Your Response</label>
+            <textarea class="form-control" id="response-text" name="response" rows="5" placeholder="Write your response to this review..." required></textarea>
+            <div class="form-text">
+              Your response will be publicly visible to all users. Be professional and courteous.
+            </div>
+          </div>
+          <div class="response-tips mb-3">
+            <h6><i class="fas fa-lightbulb text-warning me-2"></i>Tips for Responding</h6>
+            <ul class="small text-muted">
+              <li>Thank the guest for their feedback</li>
+              <li>Address specific points mentioned in the review</li>
+              <li>Be professional, even if responding to criticism</li>
+              <li>Explain any improvements or changes you've made</li>
+              <li>Keep it concise and to the point</li>
+            </ul>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submit-response-btn">Submit Response</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Sidebar Styles */
+  .owner-sidebar {
+    height: 100%;
+  }
+
+  .sidebar-menu {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-item {
+    padding: 0.75rem 1.25rem;
+    color: #495057;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .sidebar-item:hover {
+    background-color: #f8f9fa;
+    color: var(--primary-color);
+  }
+
+  .sidebar-item.active {
+    background-color: #f0f8ff;
+    color: var(--primary-color);
+    border-left-color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  /* User Avatar */
+  .user-avatar, .owner-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .owner-avatar {
+    background-color: #e6f2ff;
+    color: var(--primary-color);
+  }
+
+  .review-user {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Review Item */
+  .review-item {
+    transition: background-color 0.2s ease;
+  }
+
+  .review-item:hover {
+    background-color: #f8f9fa;
+  }
+
+  /* Review Photos */
+  .review-photo {
+    display: block;
+    height: 0;
+    padding-bottom: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .review-photo img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Filter reviews
+    const filterOptions = document.querySelectorAll('.filter-option');
+    const reviewsList = document.querySelector('.reviews-list');
+    const currentFilter = document.getElementById('current-filter');
+    
+    if (filterOptions && reviewsList) {
+      filterOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const filterType = this.getAttribute('data-filter');
+          currentFilter.textContent = this.textContent;
+          
+          const reviews = reviewsList.querySelectorAll('.review-item');
+          
+          reviews.forEach(review => {
+            const rating = parseInt(review.getAttribute('data-rating'));
+            const status = review.getAttribute('data-status');
+            
+            let show = true;
+            
+            if (filterType === 'pending' && status !== 'pending') {
+              show = false;
+            } else if (filterType === 'responded' && status !== 'responded') {
+              show = false;
+            } else if (filterType === 'positive' && (rating < 4)) {
+              show = false;
+            } else if (filterType === 'neutral' && rating !== 3) {
+              show = false;
+            } else if (filterType === 'negative' && (rating > 2)) {
+              show = false;
+            }
+            
+            review.style.display = show ? 'block' : 'none';
+          });
+        });
+      });
+    }
+    
+    // Sort reviews
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const currentSort = document.getElementById('current-sort');
+    
+    if (sortOptions && reviewsList) {
+      sortOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const sortType = this.getAttribute('data-sort');
+          currentSort.textContent = this.textContent;
+          
+          const reviews = Array.from(reviewsList.querySelectorAll('.review-item'));
+          
+          reviews.sort((a, b) => {
+            const ratingA = parseInt(a.getAttribute('data-rating'));
+            const ratingB = parseInt(b.getAttribute('data-rating'));
+            
+            if (sortType === 'highest') {
+              return ratingB - ratingA;
+            } else if (sortType === 'lowest') {
+              return ratingA - ratingB;
+            } else if (sortType === 'oldest') {
+              // Assuming DOM order is chronological (newest first)
+              return 1;
+            } else {
+              // Default to most recent
+              return -1;
+            }
+          });
+          
+          // Clear and re-append sorted reviews
+          reviewsList.innerHTML = '';
+          reviews.forEach(review => {
+            reviewsList.appendChild(review);
+          });
+        });
+      });
+    }
+    
+    // Response modal
+    const respondBtns = document.querySelectorAll('.respond-btn');
+    const reviewPreview = document.getElementById('review-preview');
+    const reviewIdInput = document.getElementById('review-id');
+    
+    if (respondBtns) {
+      respondBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const reviewId = this.getAttribute('data-review-id');
+          const reviewItem = this.closest('.review-item');
+          const reviewContent = reviewItem.querySelector('.review-content').textContent;
+          const reviewTitle = reviewItem.querySelector('.review-title').textContent;
+          const reviewRating = reviewItem.querySelector('.stars-display').innerHTML;
+          
+          reviewPreview.innerHTML = `
+            <div class="mb-2">${reviewRating}</div>
+            <h6>${reviewTitle}</h6>
+            <p class="mb-0">${reviewContent}</p>
+          `;
+          
+          reviewIdInput.value = reviewId;
+        });
+      });
+    }
+    
+    // Submit response
+    const submitResponseBtn = document.getElementById('submit-response-btn');
+    const responseForm = document.getElementById('response-form');
+    
+    if (submitResponseBtn && responseForm) {
+      submitResponseBtn.addEventListener('click', function() {
+        responseForm.submit();
+      });
+    }
+  });
+</script>
+{% endblock %}

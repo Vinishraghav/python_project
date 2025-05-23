@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+
+{% block title %}Reviews - {{ van.name }} - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-md-8">
+      <div class="d-flex align-items-center mb-4">
+        <div class="flex-shrink-0">
+          <div class="van-icon">
+            <i class="fas fa-shuttle-van fa-2x text-primary"></i>
+          </div>
+        </div>
+        <div class="flex-grow-1 ms-3">
+          <h1 class="h3 mb-1">{{ van.name }}</h1>
+          <div class="location-badge mb-2">
+            <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Rating Summary -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-star text-primary me-2"></i>Rating Summary
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-4 text-center mb-3 mb-md-0">
+              <div class="overall-rating">
+                <div class="rating-number">{{ "%.1f"|format(average_rating) }}</div>
+                <div class="stars-display">
+                  {% for i in range(1, 6) %}
+                    {% if i <= average_rating|int %}
+                      <i class="fas fa-star text-warning"></i>
+                    {% elif i <= average_rating + 0.5 %}
+                      <i class="fas fa-star-half-alt text-warning"></i>
+                    {% else %}
+                      <i class="far fa-star text-warning"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                <div class="rating-count text-muted">
+                  Based on {{ reviews|length }} review{% if reviews|length != 1 %}s{% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="rating-bars">
+                {% for i in range(5, 0, -1) %}
+                  {% set count = rating_counts.get(i, 0) %}
+                  {% set percentage = (count / reviews|length * 100) if reviews|length > 0 else 0 %}
+                  <div class="rating-bar-row">
+                    <div class="rating-label">{{ i }} star{% if i != 1 %}s{% endif %}</div>
+                    <div class="progress flex-grow-1 mx-2" style="height: 8px;">
+                      <div class="progress-bar bg-warning" role="progressbar" style="width: {{ percentage }}%"></div>
+                    </div>
+                    <div class="rating-count-small">{{ count }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="category-ratings">
+            <div class="row">
+              <div class="col-md-3 col-6 mb-3">
+                <div class="category-rating-item">
+                  <div class="category-name">Cleanliness</div>
+                  <div class="category-stars">
+                    {% for i in range(1, 6) %}
+                      {% if i <= category_ratings.cleanliness|int %}
+                        <i class="fas fa-star text-warning small"></i>
+                      {% elif i <= category_ratings.cleanliness + 0.5 %}
+                        <i class="fas fa-star-half-alt text-warning small"></i>
+                      {% else %}
+                        <i class="far fa-star text-warning small"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <div class="category-score">{{ "%.1f"|format(category_ratings.cleanliness) }}</div>
+                </div>
+              </div>
+              <div class="col-md-3 col-6 mb-3">
+                <div class="category-rating-item">
+                  <div class="category-name">Comfort</div>
+                  <div class="category-stars">
+                    {% for i in range(1, 6) %}
+                      {% if i <= category_ratings.comfort|int %}
+                        <i class="fas fa-star text-warning small"></i>
+                      {% elif i <= category_ratings.comfort + 0.5 %}
+                        <i class="fas fa-star-half-alt text-warning small"></i>
+                      {% else %}
+                        <i class="far fa-star text-warning small"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <div class="category-score">{{ "%.1f"|format(category_ratings.comfort) }}</div>
+                </div>
+              </div>
+              <div class="col-md-3 col-6 mb-3">
+                <div class="category-rating-item">
+                  <div class="category-name">Value</div>
+                  <div class="category-stars">
+                    {% for i in range(1, 6) %}
+                      {% if i <= category_ratings.value|int %}
+                        <i class="fas fa-star text-warning small"></i>
+                      {% elif i <= category_ratings.value + 0.5 %}
+                        <i class="fas fa-star-half-alt text-warning small"></i>
+                      {% else %}
+                        <i class="far fa-star text-warning small"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <div class="category-score">{{ "%.1f"|format(category_ratings.value) }}</div>
+                </div>
+              </div>
+              <div class="col-md-3 col-6 mb-3">
+                <div class="category-rating-item">
+                  <div class="category-name">Service</div>
+                  <div class="category-stars">
+                    {% for i in range(1, 6) %}
+                      {% if i <= category_ratings.service|int %}
+                        <i class="fas fa-star text-warning small"></i>
+                      {% elif i <= category_ratings.service + 0.5 %}
+                        <i class="fas fa-star-half-alt text-warning small"></i>
+                      {% else %}
+                        <i class="far fa-star text-warning small"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <div class="category-score">{{ "%.1f"|format(category_ratings.service) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recommendation-summary mt-4">
+            <div class="recommend-percentage">
+              {{ recommend_percentage }}% of guests recommend this van
+            </div>
+            <div class="recommend-bar">
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ recommend_percentage }}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reviews List -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-comments text-primary me-2"></i>Guest Reviews
+          </h5>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              Sort by: <span id="current-sort">Most Recent</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+              <li><a class="dropdown-item sort-option" href="#" data-sort="recent">Most Recent</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="highest">Highest Rating</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="lowest">Lowest Rating</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          {% if reviews %}
+            <div class="reviews-list">
+              {% for review in reviews %}
+                <div class="review-item p-4 border-bottom" data-rating="{{ review.rating }}">
+                  <div class="d-flex justify-content-between mb-3">
+                    <div class="review-user">
+                      <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                      </div>
+                      <div class="user-info">
+                        <div class="user-name">{{ review.user_name }}</div>
+                        <div class="review-date text-muted small">{{ review.date.strftime('%B %d, %Y') }}</div>
+                      </div>
+                    </div>
+                    <div class="review-rating">
+                      <div class="stars-display">
+                        {% for i in range(1, 6) %}
+                          {% if i <= review.rating %}
+                            <i class="fas fa-star text-warning"></i>
+                          {% else %}
+                            <i class="far fa-star text-warning"></i>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="review-title mb-2">{{ review.title }}</h6>
+                  <p class="review-content mb-3">{{ review.content }}</p>
+                  
+                  {% if review.photos %}
+                    <div class="review-photos mb-3">
+                      <div class="row g-2">
+                        {% for photo in review.photos %}
+                          <div class="col-4 col-md-3">
+                            <a href="{{ photo }}" class="review-photo" data-lightbox="review-{{ review.id }}">
+                              <img src="{{ photo }}" class="img-fluid rounded" alt="Review photo">
+                            </a>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+                  
+                  <div class="review-categories small text-muted">
+                    <span class="me-3"><i class="fas fa-broom me-1"></i>Cleanliness: {{ review.cleanliness }}/5</span>
+                    <span class="me-3"><i class="fas fa-couch me-1"></i>Comfort: {{ review.comfort }}/5</span>
+                    <span class="me-3"><i class="fas fa-dollar-sign me-1"></i>Value: {{ review.value }}/5</span>
+                    <span><i class="fas fa-concierge-bell me-1"></i>Service: {{ review.service }}/5</span>
+                  </div>
+                  
+                  <div class="review-recommend mt-2">
+                    {% if review.recommend %}
+                      <span class="badge bg-success"><i class="fas fa-thumbs-up me-1"></i>Would recommend</span>
+                    {% else %}
+                      <span class="badge bg-danger"><i class="fas fa-thumbs-down me-1"></i>Would not recommend</span>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-center py-5">
+              <div class="empty-reviews-icon mb-3">
+                <i class="far fa-comment-dots fa-4x text-muted"></i>
+              </div>
+              <h5>No Reviews Yet</h5>
+              <p class="text-muted">Be the first to review this van!</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <!-- Van Details Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-info-circle text-primary me-2"></i>Van Details
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="van-details">
+            <div class="detail-item">
+              <i class="fas fa-users text-primary"></i>
+              <span>{{ van.seats }} Seats</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-tag text-primary"></i>
+              <span>${{ van.price }}/day</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-map-marker-alt text-primary"></i>
+              <span>{{ van.location }}</span>
+            </div>
+          </div>
+          <div class="d-grid gap-2 mt-3">
+            <a href="{{ url_for('list_vans') }}" class="btn btn-primary">
+              <i class="fas fa-calendar-alt me-1"></i>Check Availability
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Write a Review Card -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-edit text-primary me-2"></i>Write a Review
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">Have you rented this van? Share your experience with other travelers!</p>
+          <div class="d-grid">
+            <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-primary">
+              <i class="fas fa-pen me-1"></i>Write a Review
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Van Icon */
+  .van-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f0f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  /* Overall Rating */
+  .overall-rating {
+    padding: 1rem;
+  }
+
+  .rating-number {
+    font-size: 3rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #343a40;
+  }
+
+  .stars-display {
+    margin: 0.5rem 0;
+  }
+
+  /* Rating Bars */
+  .rating-bars {
+    padding: 0.5rem 0;
+  }
+
+  .rating-bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .rating-label, .rating-count-small {
+    font-size: 0.875rem;
+    min-width: 60px;
+  }
+
+  /* Category Ratings */
+  .category-rating-item {
+    text-align: center;
+  }
+
+  .category-name {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+
+  .category-score {
+    font-weight: bold;
+  }
+
+  /* Recommendation Summary */
+  .recommendation-summary {
+    text-align: center;
+  }
+
+  .recommend-percentage {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Review Item */
+  .review-item {
+    transition: background-color 0.2s ease;
+  }
+
+  .review-item:hover {
+    background-color: #f8f9fa;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+  }
+
+  .review-user {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Van Details */
+  .van-details {
+    margin-bottom: 1rem;
+  }
+
+  .detail-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .detail-item i {
+    width: 24px;
+    margin-right: 0.75rem;
+  }
+
+  /* Review Photos */
+  .review-photo {
+    display: block;
+    height: 0;
+    padding-bottom: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .review-photo img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Sort reviews
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const reviewsList = document.querySelector('.reviews-list');
+    const currentSort = document.getElementById('current-sort');
+    
+    if (sortOptions && reviewsList) {
+      sortOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const sortType = this.getAttribute('data-sort');
+          currentSort.textContent = this.textContent;
+          
+          const reviews = Array.from(reviewsList.querySelectorAll('.review-item'));
+          
+          reviews.sort((a, b) => {
+            const ratingA = parseInt(a.getAttribute('data-rating'));
+            const ratingB = parseInt(b.getAttribute('data-rating'));
+            
+            if (sortType === 'highest') {
+              return ratingB - ratingA;
+            } else if (sortType === 'lowest') {
+              return ratingA - ratingB;
+            } else {
+              // Default to most recent (assuming DOM order is chronological)
+              return 0;
+            }
+          });
+          
+          // Clear and re-append sorted reviews
+          reviewsList.innerHTML = '';
+          reviews.forEach(review => {
+            reviewsList.appendChild(review);
+          });
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

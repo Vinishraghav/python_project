@@ -103,6 +103,38 @@
             </div>
           </div>
 
+          <!-- Van Rating -->
+          <div class="van-rating mt-2">
+            <div class="d-flex align-items-center">
+              <div class="stars-display me-2">
+                {% set avg_rating = van.get('avg_rating', 0) %} {% for i in
+                range(1, 6) %} {% if i <= avg_rating|int %}
+                <i class="fas fa-star text-warning"></i>
+                {% elif i <= avg_rating + 0.5 %}
+                <i class="fas fa-star-half-alt text-warning"></i>
+                {% else %}
+                <i class="far fa-star text-warning"></i>
+                {% endif %} {% endfor %}
+              </div>
+              <div class="rating-text">
+                {% set review_count = van.get('review_count', 0) %} {% if
+                review_count > 0 %}
+                <span class="small"
+                  >{{ "%.1f"|format(avg_rating) }} ({{ review_count }})</span
+                >
+                {% else %}
+                <span class="small text-muted">No reviews yet</span>
+                {% endif %}
+              </div>
+            </div>
+            <a
+              href="{{ url_for('van_reviews', van_id=van.id) }}"
+              class="small d-block mt-1"
+            >
+              <i class="fas fa-comment-alt me-1"></i>Read reviews
+            </a>
+          </div>
+
           <!-- Calculate total price -->
           {% set days = 1 %} {% if request.args.start_date and
           request.args.end_date %} {% set days = 2 %}

@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}Submit Review - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-star text-primary me-2"></i>Rate Your Experience
+          </h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="booking-summary mb-4">
+            <div class="d-flex align-items-center mb-3">
+              <div class="flex-shrink-0">
+                <div class="van-icon">
+                  <i class="fas fa-shuttle-van fa-2x text-primary"></i>
+                </div>
+              </div>
+              <div class="flex-grow-1 ms-3">
+                <h5 class="mb-1">{{ van.name }}</h5>
+                <div class="location-badge mb-2">
+                  <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+                </div>
+              </div>
+            </div>
+            <div class="booking-details small text-muted">
+              <div class="row mb-1">
+                <div class="col-6">Booking Reference:</div>
+                <div class="col-6 text-end">{{ '%06d'|format(booking.id) }}</div>
+              </div>
+              <div class="row mb-1">
+                <div class="col-6">Trip Dates:</div>
+                <div class="col-6 text-end">
+                  {{ booking.start_date.strftime('%b %d') }} - {{ booking.end_date.strftime('%b %d, %Y') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form id="review-form" action="{{ url_for('submit_review', booking_id=booking.id) }}" method="POST">
+            <div class="mb-4">
+              <label class="form-label">Overall Rating</label>
+              <div class="rating-input">
+                <div class="stars">
+                  <input type="radio" name="rating" value="5" id="rating-5" required>
+                  <label for="rating-5"><i class="fas fa-star"></i></label>
+                  
+                  <input type="radio" name="rating" value="4" id="rating-4">
+                  <label for="rating-4"><i class="fas fa-star"></i></label>
+                  
+                  <input type="radio" name="rating" value="3" id="rating-3">
+                  <label for="rating-3"><i class="fas fa-star"></i></label>
+                  
+                  <input type="radio" name="rating" value="2" id="rating-2">
+                  <label for="rating-2"><i class="fas fa-star"></i></label>
+                  
+                  <input type="radio" name="rating" value="1" id="rating-1">
+                  <label for="rating-1"><i class="fas fa-star"></i></label>
+                </div>
+                <div class="rating-text mt-2" id="rating-text">Select a rating</div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="review-title" class="form-label">Review Title</label>
+              <input type="text" class="form-control" id="review-title" name="title" placeholder="Summarize your experience" required>
+            </div>
+
+            <div class="mb-4">
+              <label for="review-content" class="form-label">Your Review</label>
+              <textarea class="form-control" id="review-content" name="content" rows="5" placeholder="Tell others about your experience with this van" required></textarea>
+              <div class="form-text">Your review will help other travelers make better choices.</div>
+            </div>
+
+            <div class="mb-4">
+              <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                  <label class="form-label">Cleanliness</label>
+                  <div class="category-rating">
+                    <input type="hidden" name="cleanliness" id="cleanliness-rating" value="0">
+                    <div class="stars-small">
+                      <i class="far fa-star" data-rating="1"></i>
+                      <i class="far fa-star" data-rating="2"></i>
+                      <i class="far fa-star" data-rating="3"></i>
+                      <i class="far fa-star" data-rating="4"></i>
+                      <i class="far fa-star" data-rating="5"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Comfort</label>
+                  <div class="category-rating">
+                    <input type="hidden" name="comfort" id="comfort-rating" value="0">
+                    <div class="stars-small">
+                      <i class="far fa-star" data-rating="1"></i>
+                      <i class="far fa-star" data-rating="2"></i>
+                      <i class="far fa-star" data-rating="3"></i>
+                      <i class="far fa-star" data-rating="4"></i>
+                      <i class="far fa-star" data-rating="5"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                  <label class="form-label">Value for Money</label>
+                  <div class="category-rating">
+                    <input type="hidden" name="value" id="value-rating" value="0">
+                    <div class="stars-small">
+                      <i class="far fa-star" data-rating="1"></i>
+                      <i class="far fa-star" data-rating="2"></i>
+                      <i class="far fa-star" data-rating="3"></i>
+                      <i class="far fa-star" data-rating="4"></i>
+                      <i class="far fa-star" data-rating="5"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Owner Service</label>
+                  <div class="category-rating">
+                    <input type="hidden" name="service" id="service-rating" value="0">
+                    <div class="stars-small">
+                      <i class="far fa-star" data-rating="1"></i>
+                      <i class="far fa-star" data-rating="2"></i>
+                      <i class="far fa-star" data-rating="3"></i>
+                      <i class="far fa-star" data-rating="4"></i>
+                      <i class="far fa-star" data-rating="5"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Would you recommend this van to others?</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="recommend" id="recommend-yes" value="yes" required>
+                <label class="form-check-label" for="recommend-yes">
+                  <i class="fas fa-thumbs-up text-success me-1"></i>Yes, I would recommend
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="recommend" id="recommend-no" value="no">
+                <label class="form-check-label" for="recommend-no">
+                  <i class="fas fa-thumbs-down text-danger me-1"></i>No, I would not recommend
+                </label>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="review-photos" class="form-label">Add Photos (Optional)</label>
+              <input class="form-control" type="file" id="review-photos" name="photos" multiple accept="image/*">
+              <div class="form-text">You can upload up to 3 photos. Max size: 5MB each.</div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <a href="{{ url_for('booking_confirmation', booking_id=booking.id) }}" class="btn btn-outline-secondary me-md-2">
+                <i class="fas fa-arrow-left me-1"></i>Back
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-1"></i>Submit Review
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Van Icon */
+  .van-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f0f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  /* Rating Stars */
+  .rating-input {
+    text-align: center;
+  }
+
+  .stars {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    justify-content: center;
+  }
+
+  .stars input {
+    display: none;
+  }
+
+  .stars label {
+    cursor: pointer;
+    font-size: 2rem;
+    padding: 0 0.2rem;
+    color: #ddd;
+    transition: all 0.2s ease;
+  }
+
+  .stars label:hover,
+  .stars label:hover ~ label,
+  .stars input:checked ~ label {
+    color: #ffc107;
+  }
+
+  /* Category Rating Stars */
+  .category-rating {
+    margin-bottom: 1rem;
+  }
+
+  .stars-small {
+    display: flex;
+  }
+
+  .stars-small i {
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 0.1rem;
+    color: #ddd;
+    transition: all 0.2s ease;
+  }
+
+  .stars-small i.active {
+    color: #ffc107;
+  }
+
+  .stars-small i:hover,
+  .stars-small i:hover ~ i {
+    color: #ffc107;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Main rating text update
+    const ratingInputs = document.querySelectorAll('input[name="rating"]');
+    const ratingText = document.getElementById('rating-text');
+    const ratingTexts = [
+      'Select a rating',
+      'Poor - Major issues, would not recommend',
+      'Fair - Below average experience',
+      'Average - Met basic expectations',
+      'Good - Pleasant experience overall',
+      'Excellent - Outstanding in every way'
+    ];
+
+    ratingInputs.forEach(input => {
+      input.addEventListener('change', function() {
+        ratingText.textContent = ratingTexts[this.value];
+      });
+    });
+
+    // Category ratings
+    const categoryRatings = document.querySelectorAll('.stars-small');
+    
+    categoryRatings.forEach(container => {
+      const stars = container.querySelectorAll('i');
+      const hiddenInput = container.parentElement.querySelector('input[type="hidden"]');
+      
+      stars.forEach(star => {
+        star.addEventListener('click', function() {
+          const rating = this.getAttribute('data-rating');
+          hiddenInput.value = rating;
+          
+          // Reset all stars
+          stars.forEach(s => s.className = 'far fa-star');
+          
+          // Fill stars up to selected rating
+          for (let i = 0; i < stars.length; i++) {
+            if (i < rating) {
+              stars[i].className = 'fas fa-star active';
+            }
+          }
+        });
+      });
+    });
+  });
+</script>
+{% endblock %}

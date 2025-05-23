@@ -1,0 +1,388 @@
+{% extends 'base.html' %}
+
+{% block title %}My Bookings - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-md-3 mb-4">
+      <!-- User Profile Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body text-center">
+          <div class="user-avatar mx-auto mb-3">
+            <i class="fas fa-user fa-2x"></i>
+          </div>
+          <h5 class="mb-1">{{ session.user.split('@')[0] }}</h5>
+          <p class="text-muted small mb-3">{{ session.user }}</p>
+          <div class="d-grid">
+            <a href="#" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-edit me-1"></i>Edit Profile
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Card -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            <a href="{{ url_for('my_bookings') }}" class="list-group-item list-group-item-action active">
+              <i class="fas fa-calendar-check me-2"></i>My Bookings
+            </a>
+            <a href="#" class="list-group-item list-group-item-action">
+              <i class="fas fa-star me-2"></i>My Reviews
+            </a>
+            <a href="#" class="list-group-item list-group-item-action">
+              <i class="fas fa-heart me-2"></i>Favorites
+            </a>
+            <a href="#" class="list-group-item list-group-item-action">
+              <i class="fas fa-cog me-2"></i>Account Settings
+            </a>
+            <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger">
+              <i class="fas fa-sign-out-alt me-2"></i>Logout
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-9">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">My Bookings</h1>
+        <div class="d-flex">
+          <div class="dropdown me-2">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-filter me-1"></i>Filter: <span id="current-filter">All Bookings</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="filterDropdown">
+              <li><a class="dropdown-item filter-option" href="#" data-filter="all">All Bookings</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="upcoming">Upcoming</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="completed">Completed</a></li>
+              <li><a class="dropdown-item filter-option" href="#" data-filter="cancelled">Cancelled</a></li>
+            </ul>
+          </div>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-sort me-1"></i>Sort: <span id="current-sort">Most Recent</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+              <li><a class="dropdown-item sort-option" href="#" data-sort="recent">Most Recent</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="oldest">Oldest First</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="price-high">Price: High to Low</a></li>
+              <li><a class="dropdown-item sort-option" href="#" data-sort="price-low">Price: Low to High</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings List -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          {% if bookings %}
+            <div class="bookings-list">
+              {% for booking in bookings %}
+                {% set van = vans_dict.get(booking.van_id) %}
+                {% set now = current_date %}
+                {% set is_completed = booking.end_date < now %}
+                {% set is_upcoming = booking.start_date > now %}
+                {% set is_active = booking.start_date <= now and booking.end_date >= now %}
+                {% set is_cancelled = booking.status == 'cancelled' %}
+                {% set has_reviewed = booking.id in reviewed_bookings %}
+                
+                <div class="booking-item p-4 border-bottom" 
+                     data-status="{{ 'completed' if is_completed else 'upcoming' if is_upcoming else 'active' if is_active else 'cancelled' }}"
+                     data-price="{{ booking.total_price }}">
+                  <div class="row">
+                    <div class="col-md-3 mb-3 mb-md-0">
+                      <div class="d-flex align-items-center h-100">
+                        <div class="van-icon me-3">
+                          <i class="fas fa-shuttle-van fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                          <h6 class="mb-1">{{ van.name }}</h6>
+                          <div class="location-badge">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3 mb-3 mb-md-0">
+                      <div class="booking-details">
+                        <div class="detail-item">
+                          <i class="fas fa-calendar me-2 text-primary"></i>
+                          <span>{{ booking.start_date.strftime('%b %d') }} - {{ booking.end_date.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        <div class="detail-item">
+                          <i class="fas fa-users me-2 text-primary"></i>
+                          <span>{{ booking.passengers }} passengers</span>
+                        </div>
+                        <div class="detail-item">
+                          <i class="fas fa-tag me-2 text-primary"></i>
+                          <span>${{ booking.total_price }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3 mb-3 mb-md-0">
+                      <div class="booking-status h-100 d-flex flex-column justify-content-center">
+                        <div class="booking-id small text-muted mb-2">
+                          Booking #{{ '%06d'|format(booking.id) }}
+                        </div>
+                        {% if is_cancelled %}
+                          <span class="badge bg-danger">Cancelled</span>
+                        {% elif is_active %}
+                          <span class="badge bg-success">Active</span>
+                        {% elif is_upcoming %}
+                          <span class="badge bg-primary">Upcoming</span>
+                        {% elif is_completed %}
+                          <span class="badge bg-secondary">Completed</span>
+                        {% endif %}
+                        
+                        <div class="payment-status mt-2">
+                          {% if booking.payment_status == 'completed' %}
+                            <span class="badge bg-success">Paid</span>
+                          {% elif booking.payment_status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Payment Pending</span>
+                          {% else %}
+                            <span class="badge bg-danger">Payment Required</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="booking-actions d-flex flex-column h-100 justify-content-center">
+                        <a href="{{ url_for('booking_confirmation', booking_id=booking.id) }}" class="btn btn-outline-primary btn-sm mb-2">
+                          <i class="fas fa-info-circle me-1"></i>View Details
+                        </a>
+                        
+                        {% if is_completed and not has_reviewed %}
+                          <a href="{{ url_for('submit_review', booking_id=booking.id) }}" class="btn btn-outline-success btn-sm mb-2">
+                            <i class="fas fa-star me-1"></i>Write Review
+                          </a>
+                        {% elif is_completed and has_reviewed %}
+                          <a href="{{ url_for('view_review', booking_id=booking.id) }}" class="btn btn-outline-secondary btn-sm mb-2">
+                            <i class="fas fa-eye me-1"></i>View Your Review
+                          </a>
+                        {% elif is_upcoming %}
+                          <button class="btn btn-outline-danger btn-sm mb-2" data-bs-toggle="modal" data-bs-target="#cancelModal" data-booking-id="{{ booking.id }}">
+                            <i class="fas fa-times me-1"></i>Cancel Booking
+                          </button>
+                        {% endif %}
+                        
+                        {% if booking.payment_status != 'completed' %}
+                          <a href="{{ url_for('payment', booking_id=booking.id) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-credit-card me-1"></i>Complete Payment
+                          </a>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-center py-5">
+              <div class="empty-bookings-icon mb-3">
+                <i class="far fa-calendar-times fa-4x text-muted"></i>
+              </div>
+              <h5>No Bookings Yet</h5>
+              <p class="text-muted mb-4">You haven't made any bookings yet.</p>
+              <a href="{{ url_for('home') }}" class="btn btn-primary">
+                <i class="fas fa-search me-1"></i>Find a Van
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Booking Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cancelModalLabel">Cancel Booking</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>Warning:</strong> Cancellation may be subject to fees depending on how close it is to your booking date.
+        </div>
+        <p>Are you sure you want to cancel this booking?</p>
+        <form id="cancel-form" action="{{ url_for('cancel_booking') }}" method="POST">
+          <input type="hidden" id="booking-id-input" name="booking_id">
+          <div class="mb-3">
+            <label for="cancel-reason" class="form-label">Reason for cancellation (optional)</label>
+            <select class="form-select" id="cancel-reason" name="reason">
+              <option value="change_plans">Change of plans</option>
+              <option value="found_alternative">Found an alternative</option>
+              <option value="emergency">Emergency</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3" id="other-reason-container" style="display: none;">
+            <label for="other-reason" class="form-label">Please specify</label>
+            <textarea class="form-control" id="other-reason" name="other_reason" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger" id="confirm-cancel-btn">Cancel Booking</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* User Avatar */
+  .user-avatar {
+    width: 80px;
+    height: 80px;
+    background-color: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Van Icon */
+  .van-icon {
+    width: 50px;
+    height: 50px;
+    background-color: #f0f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+
+  /* Booking Details */
+  .detail-item {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  /* Booking Item */
+  .booking-item {
+    transition: background-color 0.2s ease;
+  }
+
+  .booking-item:hover {
+    background-color: #f8f9fa;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Filter bookings
+    const filterOptions = document.querySelectorAll('.filter-option');
+    const bookingsList = document.querySelector('.bookings-list');
+    const currentFilter = document.getElementById('current-filter');
+    
+    if (filterOptions && bookingsList) {
+      filterOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const filterType = this.getAttribute('data-filter');
+          currentFilter.textContent = this.textContent;
+          
+          const bookings = bookingsList.querySelectorAll('.booking-item');
+          
+          bookings.forEach(booking => {
+            const status = booking.getAttribute('data-status');
+            
+            let show = true;
+            
+            if (filterType !== 'all' && status !== filterType) {
+              show = false;
+            }
+            
+            booking.style.display = show ? 'block' : 'none';
+          });
+        });
+      });
+    }
+    
+    // Sort bookings
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const currentSort = document.getElementById('current-sort');
+    
+    if (sortOptions && bookingsList) {
+      sortOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const sortType = this.getAttribute('data-sort');
+          currentSort.textContent = this.textContent;
+          
+          const bookings = Array.from(bookingsList.querySelectorAll('.booking-item'));
+          
+          bookings.sort((a, b) => {
+            if (sortType === 'price-high' || sortType === 'price-low') {
+              const priceA = parseFloat(a.getAttribute('data-price'));
+              const priceB = parseFloat(b.getAttribute('data-price'));
+              
+              return sortType === 'price-high' ? priceB - priceA : priceA - priceB;
+            } else if (sortType === 'oldest') {
+              // Assuming DOM order is chronological (newest first)
+              return 1;
+            } else {
+              // Default to most recent
+              return -1;
+            }
+          });
+          
+          // Clear and re-append sorted bookings
+          bookingsList.innerHTML = '';
+          bookings.forEach(booking => {
+            bookingsList.appendChild(booking);
+          });
+        });
+      });
+    }
+    
+    // Cancel booking modal
+    const cancelModal = document.getElementById('cancelModal');
+    const bookingIdInput = document.getElementById('booking-id-input');
+    const cancelForm = document.getElementById('cancel-form');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const cancelReason = document.getElementById('cancel-reason');
+    const otherReasonContainer = document.getElementById('other-reason-container');
+    
+    if (cancelModal) {
+      cancelModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const bookingId = button.getAttribute('data-booking-id');
+        bookingIdInput.value = bookingId;
+      });
+    }
+    
+    if (cancelReason) {
+      cancelReason.addEventListener('change', function() {
+        otherReasonContainer.style.display = this.value === 'other' ? 'block' : 'none';
+      });
+    }
+    
+    if (confirmCancelBtn && cancelForm) {
+      confirmCancelBtn.addEventListener('click', function() {
+        cancelForm.submit();
+      });
+    }
+  });
+</script>
+{% endblock %}
