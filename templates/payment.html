@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment - Tour Van Booking{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Booking Steps -->
+  <div class="booking-steps mb-4">
+    <div class="step completed" id="step-1">
+      <div class="step-number">1</div>
+      <div class="step-text">Trip Details</div>
+    </div>
+    <div class="step completed" id="step-2">
+      <div class="step-number">2</div>
+      <div class="step-text">Select Van</div>
+    </div>
+    <div class="step active" id="step-3">
+      <div class="step-number">3</div>
+      <div class="step-text">Payment</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-7">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-credit-card text-primary me-2"></i>Payment Details
+          </h5>
+        </div>
+        <div class="card-body">
+          <div id="payment-form">
+            <div class="mb-4">
+              <h6 class="mb-3">Payment Method</h6>
+              <div class="payment-methods">
+                <div class="form-check form-check-inline payment-method-option">
+                  <input class="form-check-input" type="radio" name="payment-method" id="card-payment" value="card" checked>
+                  <label class="form-check-label" for="card-payment">
+                    <i class="far fa-credit-card me-2"></i>Credit Card
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div id="card-element-container" class="mb-4">
+              <!-- Stripe Elements will be inserted here -->
+              <div id="card-element" class="form-control p-3 mb-2" style="min-height: 40px;"></div>
+              <div id="card-errors" class="text-danger small" role="alert"></div>
+            </div>
+
+            <div class="mb-4">
+              <h6 class="mb-3">Billing Information</h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="name" class="form-label">Full Name</label>
+                  <input type="text" class="form-control" id="name" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="email" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="email" value="{{ session.user }}" readonly>
+                </div>
+                <div class="col-12">
+                  <label for="address" class="form-label">Address</label>
+                  <input type="text" class="form-control" id="address" required>
+                </div>
+                <div class="col-md-5">
+                  <label for="city" class="form-label">City</label>
+                  <input type="text" class="form-control" id="city" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="state" class="form-label">State</label>
+                  <input type="text" class="form-control" id="state" required>
+                </div>
+                <div class="col-md-3">
+                  <label for="zip" class="form-label">Zip</label>
+                  <input type="text" class="form-control" id="zip" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="save-info">
+              <label class="form-check-label" for="save-info">
+                Save this information for next time
+              </label>
+            </div>
+
+            <button id="submit-payment" class="btn btn-primary btn-lg w-100">
+              <i class="fas fa-lock me-2"></i>Pay ${{ booking.total_price }}
+            </button>
+          </div>
+
+          <div id="payment-processing" class="text-center py-5 d-none">
+            <div class="spinner-border text-primary mb-3" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5>Processing your payment...</h5>
+            <p class="text-muted">Please do not close this page.</p>
+          </div>
+
+          <div id="payment-success" class="text-center py-5 d-none">
+            <div class="success-checkmark mb-4">
+              <i class="fas fa-check-circle text-success fa-5x"></i>
+            </div>
+            <h4 class="text-success mb-3">Payment Successful!</h4>
+            <p>Your booking has been confirmed. You will receive a confirmation email shortly.</p>
+            <a href="{{ url_for('booking_confirmation', booking_id=booking.id) }}" class="btn btn-primary mt-3">
+              <i class="fas fa-receipt me-2"></i>View Booking Details
+            </a>
+          </div>
+
+          <div id="payment-error" class="text-center py-5 d-none">
+            <div class="error-mark mb-4">
+              <i class="fas fa-times-circle text-danger fa-5x"></i>
+            </div>
+            <h4 class="text-danger mb-3">Payment Failed</h4>
+            <p id="error-message">There was an error processing your payment. Please try again.</p>
+            <button id="retry-payment" class="btn btn-outline-primary mt-3">
+              <i class="fas fa-redo me-2"></i>Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-receipt text-primary me-2"></i>Order Summary
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-4">
+            <div class="flex-shrink-0">
+              <div class="van-icon">
+                <i class="fas fa-shuttle-van fa-2x text-primary"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1 ms-3">
+              <h5 class="mb-1">{{ van.name }}</h5>
+              <div class="location-badge mb-2">
+                <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+              </div>
+            </div>
+          </div>
+
+          <div class="booking-details mb-4">
+            <div class="row mb-2">
+              <div class="col-6 text-muted">Dates</div>
+              <div class="col-6 text-end">
+                {{ booking.start_date.strftime('%b %d') }} - {{ booking.end_date.strftime('%b %d, %Y') }}
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-6 text-muted">Duration</div>
+              <div class="col-6 text-end">
+                {% set days = (booking.end_date - booking.start_date).days %}
+                {% if days < 1 %}{% set days = 1 %}{% endif %}
+                {{ days }} day{% if days > 1 %}s{% endif %}
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-6 text-muted">Passengers</div>
+              <div class="col-6 text-end">{{ booking.passengers }}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-6 text-muted">Price per day</div>
+              <div class="col-6 text-end">${{ van.price }}</div>
+            </div>
+          </div>
+
+          <hr>
+
+          <div class="price-summary mb-3">
+            <div class="row mb-2">
+              <div class="col-6">Subtotal</div>
+              <div class="col-6 text-end">${{ booking.total_price }}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-6">Tax</div>
+              <div class="col-6 text-end">$0.00</div>
+            </div>
+            <div class="row fw-bold">
+              <div class="col-6">Total</div>
+              <div class="col-6 text-end">${{ booking.total_price }}</div>
+            </div>
+          </div>
+
+          <div class="secure-payment-info">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-lock text-success me-2"></i>
+              <small class="text-muted">Your payment information is secure. We use industry-standard encryption to protect your data.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-3">Need Help?</h6>
+          <p class="small text-muted mb-3">If you have any questions about your booking or payment, please contact our customer support.</p>
+          <div class="d-grid">
+            <a href="#" class="btn btn-outline-primary">
+              <i class="fas fa-headset me-2"></i>Contact Support
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Payment Method Styles */
+  .payment-method-option {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .payment-method-option:hover {
+    border-color: var(--primary-color);
+  }
+
+  .payment-method-option input:checked + label {
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  /* Van Icon */
+  .van-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f0f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Booking Steps */
+  .booking-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 33%;
+    position: relative;
+  }
+
+  .step::after {
+    content: "";
+    position: absolute;
+    top: 20px;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background-color: #dee2e6;
+    z-index: 1;
+  }
+
+  .step:last-child::after {
+    display: none;
+  }
+
+  .step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #dee2e6;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    z-index: 2;
+    transition: all 0.3s ease;
+  }
+
+  .step-text {
+    font-size: 0.9rem;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+
+  .step.active .step-number {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .step.active .step-text {
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .step.completed .step-number {
+    background-color: #28a745;
+    color: white;
+  }
+</style>
+
+<!-- Stripe JS -->
+<script src="https://js.stripe.com/v3/"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Stripe
+    const stripe = Stripe('{{ stripe_publishable_key }}');
+    const elements = stripe.elements();
+    
+    // Create card element
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+    
+    // Handle form submission
+    const form = document.getElementById('payment-form');
+    const submitButton = document.getElementById('submit-payment');
+    const processingDiv = document.getElementById('payment-processing');
+    const successDiv = document.getElementById('payment-success');
+    const errorDiv = document.getElementById('payment-error');
+    const errorMessage = document.getElementById('error-message');
+    const retryButton = document.getElementById('retry-payment');
+    
+    submitButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      
+      // Validate form
+      const name = document.getElementById('name').value;
+      const address = document.getElementById('address').value;
+      const city = document.getElementById('city').value;
+      const state = document.getElementById('state').value;
+      const zip = document.getElementById('zip').value;
+      
+      if (!name || !address || !city || !state || !zip) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      // Show processing state
+      form.classList.add('d-none');
+      processingDiv.classList.remove('d-none');
+      
+      try {
+        // Create payment intent on the server
+        const response = await fetch('/create-payment-intent/{{ booking.id }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            address: address,
+            city: city,
+            state: state,
+            zip: zip
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // Confirm card payment
+        const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: name,
+              email: '{{ session.user }}',
+              address: {
+                line1: address,
+                city: city,
+                state: state,
+                postal_code: zip
+              }
+            }
+          }
+        });
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+        
+        if (paymentIntent.status === 'succeeded') {
+          // Payment successful
+          processingDiv.classList.add('d-none');
+          successDiv.classList.remove('d-none');
+          
+          // Update booking status on server
+          await fetch('/update-payment-status/{{ booking.id }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              payment_id: paymentIntent.id,
+              payment_status: 'completed'
+            }),
+          });
+        }
+      } catch (error) {
+        // Show error state
+        processingDiv.classList.add('d-none');
+        errorDiv.classList.remove('d-none');
+        errorMessage.textContent = error.message || 'There was an error processing your payment. Please try again.';
+      }
+    });
+    
+    // Handle retry button
+    retryButton.addEventListener('click', () => {
+      errorDiv.classList.add('d-none');
+      form.classList.remove('d-none');
+    });
+  });
+</script>
+{% endblock %}

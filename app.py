@@ -5,6 +5,8 @@ from flask_socketio import SocketIO, emit
 from datetime import datetime, timedelta
 import os
 import json
+import stripe
+import uuid
 from dotenv import load_dotenv
 from utils.email_utils import generate_otp, store_otp, verify_otp, send_otp_email
 
@@ -14,6 +16,9 @@ load_dotenv()
 # Initialize Firebase
 cred = credentials.Certificate('firebase_config.json')
 firebase_admin.initialize_app(cred)
+
+# Initialize Stripe
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # Initialize Flask
 app = Flask(__name__)
@@ -60,7 +65,17 @@ VANS = [
     }
 ]
 
+# Sample bookings with payment information
 BOOKINGS = []
+
+# Payment statuses
+PAYMENT_STATUS = {
+    'PENDING': 'pending',
+    'PROCESSING': 'processing',
+    'COMPLETED': 'completed',
+    'FAILED': 'failed',
+    'REFUNDED': 'refunded'
+}
 
 @app.route('/')
 def welcome():
@@ -657,6 +672,145 @@ def booking_confirmation(booking_id):
         return render_template('booking.html', booking=booking, van=van)
     return redirect(url_for('home'))
 
+@app.route('/payment/<int:booking_id>')
+def payment(booking_id):
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+        van = next((v for v in VANS if v['id'] == booking['van_id']), None)
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            flash('Access denied', 'danger')
+            return redirect(url_for('home'))
+
+        # Check if payment is already completed
+        if booking.get('payment_status') == PAYMENT_STATUS['COMPLETED']:
+            flash('Payment has already been completed for this booking', 'info')
+            return redirect(url_for('booking_confirmation', booking_id=booking_id))
+
+        # Get Stripe publishable key from environment
+        stripe_publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY')
+
+        return render_template('payment.html', booking=booking, van=van, stripe_publishable_key=stripe_publishable_key)
+
+    flash('Booking not found', 'danger')
+    return redirect(url_for('home'))
+
+@app.route('/create-payment-intent/<int:booking_id>', methods=['POST'])
+def create_payment_intent(booking_id):
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            return jsonify({"error": "Access denied"}), 403
+
+        try:
+            # Get billing information from request
+            data = request.get_json()
+
+            # Create a PaymentIntent with the order amount and currency
+            intent = stripe.PaymentIntent.create(
+                amount=int(booking['total_price'] * 100),  # Amount in cents
+                currency='usd',
+                metadata={
+                    'booking_id': booking_id,
+                    'user_email': session['user']
+                }
+            )
+
+            # Update booking with payment intent ID
+            booking['payment_id'] = intent.id
+            booking['payment_status'] = PAYMENT_STATUS['PROCESSING']
+
+            return jsonify({
+                'clientSecret': intent.client_secret
+            })
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Booking not found"}), 404
+
+@app.route('/update-payment-status/<int:booking_id>', methods=['POST'])
+def update_payment_status(booking_id):
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            return jsonify({"error": "Access denied"}), 403
+
+        try:
+            data = request.get_json()
+            payment_id = data.get('payment_id')
+            payment_status = data.get('payment_status')
+
+            # Update booking payment information
+            booking['payment_id'] = payment_id
+            booking['payment_status'] = PAYMENT_STATUS[payment_status.upper()]
+            booking['payment_date'] = datetime.now()
+            booking['payment_method'] = 'Credit Card'
+
+            # Emit socket event for real-time updates
+            payment_data = {
+                'booking_id': booking_id,
+                'payment_status': booking['payment_status'],
+                'payment_date': booking['payment_date'].strftime('%Y-%m-%d %H:%M:%S')
+            }
+            socketio.emit('payment_update', payment_data)
+
+            return jsonify({"success": True})
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Booking not found"}), 404
+
+@app.route('/payment/receipt/<int:booking_id>')
+def payment_receipt(booking_id):
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    if booking_id < len(BOOKINGS):
+        booking = BOOKINGS[booking_id]
+        van = next((v for v in VANS if v['id'] == booking['van_id']), None)
+
+        # Check if this booking belongs to the current user
+        if booking['user'] != session['user']:
+            flash('Access denied', 'danger')
+            return redirect(url_for('home'))
+
+        # Check if payment is completed
+        if booking.get('payment_status') != PAYMENT_STATUS['COMPLETED']:
+            flash('No payment receipt available for this booking', 'warning')
+            return redirect(url_for('booking_confirmation', booking_id=booking_id))
+
+        # Create payment object for the template
+        payment = {
+            'id': booking.get('payment_id', 'N/A'),
+            'date': booking.get('payment_date', datetime.now()),
+            'method': booking.get('payment_method', 'Credit Card'),
+            'status': booking.get('payment_status'),
+            'transaction_id': booking.get('payment_id', 'N/A'),
+            'customer_name': session.get('user', '').split('@')[0],
+            'customer_email': session.get('user', '')
+        }
+
+        return render_template('payment_receipt.html', booking=booking, van=van, payment=payment)
+
+    flash('Booking not found', 'danger')
+    return redirect(url_for('home'))
+
 @app.route('/unified_login', methods=['GET', 'POST'])
 def unified_login():
     if session.get('user'):
@@ -702,6 +856,12 @@ def handle_booking_update(data):
 def handle_van_update(data):
     # Broadcast the van update to all connected clients
     emit('van_update', data, broadcast=True)
+
+# Event for payment updates
+@socketio.on('payment_update')
+def handle_payment_update(data):
+    # Broadcast the payment update to all connected clients
+    emit('payment_update', data, broadcast=True)
 
 # Update the book route to emit a socket event
 @app.route('/book', methods=['POST'])
@@ -757,7 +917,11 @@ def book():
             'passengers': passengers,
             'total_price': total_price,
             'booking_date': datetime.now(),
-            'status': 'confirmed'
+            'status': 'confirmed',
+            'payment_status': PAYMENT_STATUS['PENDING'],
+            'payment_id': None,
+            'payment_method': None,
+            'payment_date': None
         }
         BOOKINGS.append(booking)
 
