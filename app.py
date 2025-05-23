@@ -356,6 +356,21 @@ def list_vans():
 
     return render_template('vans.html', vans=filtered_vans)
 
+@app.route('/map')
+def map_view():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    # Get filter parameters
+    location = request.args.get('location', '')
+
+    # Filter vans by location if specified
+    filtered_vans = VANS
+    if location:
+        filtered_vans = [van for van in VANS if van['location'] == location]
+
+    return render_template('map_view.html', vans=filtered_vans)
+
 @app.route('/admin/add', methods=['GET', 'POST'])
 def add_van():
     if session.get('role') != 'updator':
@@ -597,6 +612,37 @@ def update_availability(van_id):
     socketio.emit('availability_update', van_data)
 
     return redirect(url_for('owner_calendar', van_id=van_id))
+
+@app.route('/owner/update_location/<int:van_id>', methods=['POST'])
+def update_location(van_id):
+    if 'user' not in session or session.get('role') != 'updator':
+        return jsonify({"success": False, "error": "Access denied. You must be logged in as a van owner."})
+
+    van = next((v for v in VANS if v["id"] == van_id), None)
+    if not van:
+        return jsonify({"success": False, "error": "Van not found"})
+
+    # Get the new location from the request
+    data = request.get_json()
+    new_location = data.get('location')
+
+    if not new_location:
+        return jsonify({"success": False, "error": "Location is required"})
+
+    # Update the van's location
+    van['location'] = new_location
+    van['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    # Emit socket event for real-time updates
+    van_data = {
+        'id': van["id"],
+        'name': van["name"],
+        'location': van["location"],
+        'last_updated': van["last_updated"]
+    }
+    socketio.emit('van_update', van_data)
+
+    return jsonify({"success": True, "message": f"Location updated to {new_location}"})
 
 # Original book route replaced by the Socket.IO version below
 

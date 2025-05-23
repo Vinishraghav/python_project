@@ -1,17 +1,17 @@
-{% extends 'base.html' %}
-
-{% block title %}Van Owner Dashboard{% endblock %}
-
-{% block content %}
+{% extends 'base.html' %} {% block title %}Van Owner Dashboard{% endblock %} {%
+block content %}
 <div class="container py-5">
   <div class="row mb-4">
     <div class="col-md-8">
       <h1 class="display-5 fw-bold">
-        <i class="fas fa-tachometer-alt me-2 text-primary"></i>Van Owner Dashboard
+        <i class="fas fa-tachometer-alt me-2 text-primary"></i>Van Owner
+        Dashboard
       </h1>
       <p class="lead text-muted">Manage your vans and bookings in one place</p>
     </div>
-    <div class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end">
+    <div
+      class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end"
+    >
       <a href="{{ url_for('home') }}" class="btn btn-outline-primary me-2">
         <i class="fas fa-home me-1"></i>Home
       </a>
@@ -85,6 +85,27 @@
     </div>
   </div>
 
+  <!-- Map View -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-map-marked-alt text-primary me-2"></i>Van Locations
+        </h5>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          id="update-location-btn"
+        >
+          <i class="fas fa-location-arrow me-1"></i>Update My Location
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div id="owner-map" style="width: 100%; height: 300px"></div>
+    </div>
+  </div>
+
   <!-- Your Vans Section -->
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
@@ -122,17 +143,25 @@
                 <span class="location-badge">
                   <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
                 </span>
-                <div class="small text-muted">Updated: {{ van.last_updated }}</div>
+                <div class="small text-muted">
+                  Updated: {{ van.last_updated }}
+                </div>
               </td>
               <td>
                 <span class="badge bg-success">Available</span>
               </td>
               <td>
                 <div class="btn-group">
-                  <a href="{{ url_for('owner_calendar', van_id=van.id) }}" class="btn btn-sm btn-outline-primary">
+                  <a
+                    href="{{ url_for('owner_calendar', van_id=van.id) }}"
+                    class="btn btn-sm btn-outline-primary"
+                  >
                     <i class="fas fa-calendar-alt me-1"></i>Calendar
                   </a>
-                  <a href="{{ url_for('edit_van', van_id=van.id) }}" class="btn btn-sm btn-outline-secondary">
+                  <a
+                    href="{{ url_for('edit_van', van_id=van.id) }}"
+                    class="btn btn-sm btn-outline-secondary"
+                  >
                     <i class="fas fa-edit me-1"></i>Edit
                   </a>
                 </div>
@@ -170,7 +199,10 @@
             {% for booking in bookings %}
             <tr>
               <td>{{ booking.id }}</td>
-              <td>{{ vans|selectattr('id', 'eq', booking.van_id)|map(attribute='name')|first }}</td>
+              <td>
+                {{ vans|selectattr('id', 'eq',
+                booking.van_id)|map(attribute='name')|first }}
+              </td>
               <td>{{ booking.user }}</td>
               <td>
                 <div>{{ booking.start_date.strftime('%b %d, %Y') }}</div>
@@ -183,8 +215,7 @@
                 <span class="badge bg-success">{{ booking.status }}</span>
               </td>
             </tr>
-            {% endfor %}
-            {% if not bookings %}
+            {% endfor %} {% if not bookings %}
             <tr>
               <td colspan="7" class="text-center py-4">
                 <div class="text-muted">No bookings yet</div>
@@ -204,10 +235,198 @@
     display: inline-flex;
     align-items: center;
     background-color: #f0f8ff;
-    color: #4A6DA7;
+    color: #4a6da7;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-size: 0.9rem;
   }
+
+  /* Map Info Window */
+  .map-info-window {
+    padding: 5px;
+    max-width: 200px;
+  }
+
+  /* Location Update Modal */
+  .location-search-box {
+    margin-bottom: 15px;
+  }
 </style>
+
+<!-- Google Maps API -->
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"
+  async
+  defer
+></script>
+
+<script>
+  // Map initialization
+  let ownerMap;
+  let markers = [];
+  const vans = [
+    {% for van in vans %}
+    {
+      id: {{ van.id }},
+      name: "{{ van.name }}",
+      location: "{{ van.location }}",
+      price: {{ van.price }},
+      seats: {{ van.seats }},
+      lat: null,
+      lng: null
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  // Initialize map
+  function initMap() {
+    // Default center (will be updated after geocoding)
+    ownerMap = new google.maps.Map(document.getElementById("owner-map"), {
+      center: { lat: 40.7128, lng: -74.0060 }, // New York City
+      zoom: 5,
+      mapTypeControl: true,
+      fullscreenControl: true,
+      streetViewControl: false
+    });
+
+    // Geocode locations and add markers
+    geocodeLocations();
+
+    // Set up update location button
+    document.getElementById("update-location-btn").addEventListener("click", showLocationUpdateModal);
+  }
+
+  // Geocode locations to get coordinates
+  function geocodeLocations() {
+    const geocoder = new google.maps.Geocoder();
+
+    vans.forEach((van, index) => {
+      geocoder.geocode({ address: van.location }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          van.lat = results[0].geometry.location.lat();
+          van.lng = results[0].geometry.location.lng();
+
+          // Add marker after geocoding
+          addMarker(van);
+
+          // Center map on first van
+          if (index === 0) {
+            ownerMap.setCenter(results[0].geometry.location);
+          }
+        }
+      });
+    });
+  }
+
+  // Add marker for a van
+  function addMarker(van) {
+    if (van.lat && van.lng) {
+      const marker = new google.maps.Marker({
+        position: { lat: van.lat, lng: van.lng },
+        map: ownerMap,
+        title: van.name,
+        animation: google.maps.Animation.DROP
+      });
+
+      // Add info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div class="map-info-window">
+            <h6>${van.name}</h6>
+            <p><i class="fas fa-map-marker-alt"></i> ${van.location}</p>
+            <p><i class="fas fa-users"></i> ${van.seats} seats • <i class="fas fa-dollar-sign"></i>${van.price}/day</p>
+            <a href="/owner/calendar/${van.id}" class="btn btn-sm btn-primary">Manage Calendar</a>
+          </div>
+        `
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.open(ownerMap, marker);
+      });
+
+      markers.push({ marker, van });
+    }
+  }
+
+  // Show location update modal
+  function showLocationUpdateModal() {
+    // Create modal HTML
+    const modalHTML = `
+      <div class="modal fade" id="locationUpdateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Update Van Location</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="van-select" class="form-label">Select Van</label>
+                <select class="form-select" id="van-select">
+                  ${vans.map(van => `<option value="${van.id}">${van.name}</option>`).join('')}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="new-location" class="form-label">New Location</label>
+                <input type="text" class="form-control" id="new-location" placeholder="Enter new location">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-primary" id="save-location-btn">Update Location</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to the page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Initialize the modal
+    const modal = new bootstrap.Modal(document.getElementById('locationUpdateModal'));
+    modal.show();
+
+    // Set up save button
+    document.getElementById('save-location-btn').addEventListener('click', () => {
+      const vanId = document.getElementById('van-select').value;
+      const newLocation = document.getElementById('new-location').value;
+
+      if (newLocation) {
+        updateVanLocation(vanId, newLocation);
+        modal.hide();
+      }
+    });
+  }
+
+  // Update van location
+  function updateVanLocation(vanId, newLocation) {
+    // Send AJAX request to update location
+    fetch(`/owner/update_location/${vanId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ location: newLocation }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Show success message
+        createNotification('Location Updated', `Van location has been updated to ${newLocation}`);
+
+        // Refresh the page to show updated location
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        createNotification('Error', data.error || 'Failed to update location', 'danger');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      createNotification('Error', 'Failed to update location', 'danger');
+    });
+  }
+</script>
 {% endblock %}

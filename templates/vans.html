@@ -43,9 +43,17 @@
         </div>
       </div>
       <div class="col-md-4 text-end">
-        <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
-          <i class="fas fa-edit me-2"></i>Edit Trip Details
-        </a>
+        <div class="btn-group">
+          <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-2"></i>Edit Trip Details
+          </a>
+          <a
+            href="{{ url_for('map_view') }}?location={{ request.args.get('location', '') }}"
+            class="btn btn-outline-secondary"
+          >
+            <i class="fas fa-map-marked-alt me-2"></i>View Map
+          </a>
+        </div>
       </div>
     </div>
   </div>

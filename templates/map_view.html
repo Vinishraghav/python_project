@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Van Locations Map{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1 class="display-5 fw-bold">
+        <i class="fas fa-map-marked-alt me-2 text-primary"></i>Van Locations
+      </h1>
+      <p class="lead text-muted">Find vans near your desired location</p>
+    </div>
+    <div class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end">
+      <a href="{{ url_for('list_vans') }}" class="btn btn-outline-primary me-2">
+        <i class="fas fa-list me-1"></i>List View
+      </a>
+      <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-search me-1"></i>New Search
+      </a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <!-- Map Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-map-marker-alt text-primary me-2"></i>Available Vans Map
+            </h5>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="show-all-vans" checked>
+              <label class="form-check-label" for="show-all-vans">Show All Vans</label>
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div id="map" style="width: 100%; height: 500px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <!-- Filters Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-filter text-primary me-2"></i>Filters
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="map-filter-form">
+            <div class="mb-3">
+              <label for="location-filter" class="form-label">Location</label>
+              <select class="form-select" id="location-filter">
+                <option value="">All Locations</option>
+                <option value="New York City">New York City</option>
+                <option value="Los Angeles">Los Angeles</option>
+                <option value="Chicago">Chicago</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="seats-filter" class="form-label">Minimum Seats</label>
+              <input type="range" class="form-range" min="1" max="15" value="1" id="seats-filter">
+              <div class="d-flex justify-content-between">
+                <span>1</span>
+                <span id="seats-value">1</span>
+                <span>15</span>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="price-filter" class="form-label">Maximum Price</label>
+              <input type="range" class="form-range" min="50" max="200" value="200" id="price-filter">
+              <div class="d-flex justify-content-between">
+                <span>$50</span>
+                <span id="price-value">$200</span>
+                <span>$200</span>
+              </div>
+            </div>
+            <button type="button" id="apply-filters" class="btn btn-primary w-100">
+              <i class="fas fa-filter me-1"></i>Apply Filters
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Van List Card -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0">
+            <i class="fas fa-shuttle-van text-primary me-2"></i>Available Vans
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          <div id="van-list">
+            {% for van in vans %}
+            <div class="van-item p-3 border-bottom" data-van-id="{{ van.id }}" data-location="{{ van.location }}" data-seats="{{ van.seats }}" data-price="{{ van.price }}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">{{ van.name }}</h6>
+                  <div class="location-badge mb-2">
+                    <i class="fas fa-map-marker-alt me-1"></i>{{ van.location }}
+                  </div>
+                  <div class="small text-muted">
+                    <i class="fas fa-users me-1"></i>{{ van.seats }} seats
+                    <span class="mx-2">•</span>
+                    <i class="fas fa-dollar-sign me-1"></i>{{ van.price }}/day
+                  </div>
+                </div>
+                <a href="{{ url_for('list_vans') }}?van_id={{ van.id }}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-info-circle me-1"></i>Details
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+
+<script>
+  // Map initialization
+  let map;
+  let markers = [];
+  const vans = [
+    {% for van in vans %}
+    {
+      id: {{ van.id }},
+      name: "{{ van.name }}",
+      location: "{{ van.location }}",
+      price: {{ van.price }},
+      seats: {{ van.seats }},
+      lat: null,
+      lng: null
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  // Geocode locations to get coordinates
+  function geocodeLocations() {
+    const geocoder = new google.maps.Geocoder();
+    
+    vans.forEach((van, index) => {
+      geocoder.geocode({ address: van.location }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          van.lat = results[0].geometry.location.lat();
+          van.lng = results[0].geometry.location.lng();
+          
+          // Add marker after geocoding
+          addMarker(van);
+          
+          // Center map on first van
+          if (index === 0) {
+            map.setCenter(results[0].geometry.location);
+          }
+        }
+      });
+    });
+  }
+
+  // Add marker for a van
+  function addMarker(van) {
+    if (van.lat && van.lng) {
+      const marker = new google.maps.Marker({
+        position: { lat: van.lat, lng: van.lng },
+        map: map,
+        title: van.name,
+        animation: google.maps.Animation.DROP
+      });
+      
+      // Add info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div class="map-info-window">
+            <h6>${van.name}</h6>
+            <p><i class="fas fa-map-marker-alt"></i> ${van.location}</p>
+            <p><i class="fas fa-users"></i> ${van.seats} seats • <i class="fas fa-dollar-sign"></i>${van.price}/day</p>
+            <a href="/vans?van_id=${van.id}" class="btn btn-sm btn-primary">Book Now</a>
+          </div>
+        `
+      });
+      
+      marker.addListener("click", () => {
+        infoWindow.open(map, marker);
+      });
+      
+      markers.push({ marker, van });
+    }
+  }
+
+  // Initialize map
+  function initMap() {
+    // Default center (will be updated after geocoding)
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 40.7128, lng: -74.0060 }, // New York City
+      zoom: 5,
+      mapTypeControl: true,
+      fullscreenControl: true,
+      streetViewControl: false
+    });
+    
+    // Geocode locations and add markers
+    geocodeLocations();
+    
+    // Set up filter listeners
+    document.getElementById("apply-filters").addEventListener("click", applyFilters);
+    document.getElementById("seats-filter").addEventListener("input", updateSeatsValue);
+    document.getElementById("price-filter").addEventListener("input", updatePriceValue);
+  }
+
+  // Update displayed values for filters
+  function updateSeatsValue() {
+    document.getElementById("seats-value").textContent = document.getElementById("seats-filter").value;
+  }
+  
+  function updatePriceValue() {
+    document.getElementById("price-value").textContent = "$" + document.getElementById("price-filter").value;
+  }
+
+  // Apply filters to markers and van list
+  function applyFilters() {
+    const locationFilter = document.getElementById("location-filter").value;
+    const seatsFilter = parseInt(document.getElementById("seats-filter").value);
+    const priceFilter = parseInt(document.getElementById("price-filter").value);
+    
+    // Filter markers
+    markers.forEach(({ marker, van }) => {
+      const locationMatch = !locationFilter || van.location === locationFilter;
+      const seatsMatch = van.seats >= seatsFilter;
+      const priceMatch = van.price <= priceFilter;
+      
+      marker.setVisible(locationMatch && seatsMatch && priceMatch);
+    });
+    
+    // Filter van list
+    const vanItems = document.querySelectorAll(".van-item");
+    vanItems.forEach(item => {
+      const vanLocation = item.dataset.location;
+      const vanSeats = parseInt(item.dataset.seats);
+      const vanPrice = parseInt(item.dataset.price);
+      
+      const locationMatch = !locationFilter || vanLocation === locationFilter;
+      const seatsMatch = vanSeats >= seatsFilter;
+      const priceMatch = vanPrice <= priceFilter;
+      
+      item.style.display = locationMatch && seatsMatch && priceMatch ? "block" : "none";
+    });
+  }
+</script>
+
+<style>
+  /* Location Badge */
+  .location-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f8ff;
+    color: #4A6DA7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  
+  /* Van Item Styling */
+  .van-item {
+    transition: all 0.2s ease;
+  }
+  
+  .van-item:hover {
+    background-color: #f8f9fa;
+  }
+  
+  /* Map Info Window */
+  .map-info-window {
+    padding: 5px;
+    max-width: 200px;
+  }
+</style>
+{% endblock %}
