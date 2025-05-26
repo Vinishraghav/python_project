@@ -146,6 +146,15 @@ SAVED_SEARCHES = []
 # Sample favorite vans
 FAVORITE_VANS = []
 
+# Sample chat conversations
+CHAT_CONVERSATIONS = []
+
+# Sample chat messages
+CHAT_MESSAGES = []
+
+# Sample support tickets
+SUPPORT_TICKETS = []
+
 # Sample bookings with payment information
 BOOKINGS = []
 
@@ -187,6 +196,36 @@ NOTIFICATION_TYPE = {
 NOTIFICATION_STATUS = {
     'UNREAD': 'unread',
     'READ': 'read'
+}
+
+# Chat conversation status
+CHAT_STATUS = {
+    'ACTIVE': 'active',
+    'CLOSED': 'closed',
+    'WAITING': 'waiting'
+}
+
+# Support ticket status
+TICKET_STATUS = {
+    'OPEN': 'open',
+    'IN_PROGRESS': 'in_progress',
+    'RESOLVED': 'resolved',
+    'CLOSED': 'closed'
+}
+
+# Support ticket priority
+TICKET_PRIORITY = {
+    'LOW': 'low',
+    'MEDIUM': 'medium',
+    'HIGH': 'high',
+    'URGENT': 'urgent'
+}
+
+# Message types
+MESSAGE_TYPE = {
+    'USER': 'user',
+    'SUPPORT': 'support',
+    'SYSTEM': 'system'
 }
 
 @app.route('/')
@@ -1630,6 +1669,222 @@ def favorites_page():
 
     return render_template('favorites.html')
 
+@app.route('/chat')
+def chat_page():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    return render_template('chat.html')
+
+@app.route('/api/chat/start', methods=['POST'])
+def start_chat():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    try:
+        # Create new conversation
+        conversation_id = len(CHAT_CONVERSATIONS)
+        conversation = {
+            'id': conversation_id,
+            'user': session['user'],
+            'subject': 'Support Chat',
+            'status': CHAT_STATUS['ACTIVE'],
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'last_message': None,
+            'assigned_agent': None
+        }
+
+        CHAT_CONVERSATIONS.append(conversation)
+
+        # Create welcome message
+        message_id = len(CHAT_MESSAGES)
+        welcome_message = {
+            'id': message_id,
+            'conversation_id': conversation_id,
+            'user': 'system',
+            'message': 'Hello! How can we help you today?',
+            'type': MESSAGE_TYPE['SYSTEM'],
+            'timestamp': datetime.now(),
+            'read': False
+        }
+
+        CHAT_MESSAGES.append(welcome_message)
+
+        return jsonify({"success": True, "conversation_id": conversation_id})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chat/conversations')
+def get_chat_conversations():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Get conversations for the current user
+    user_conversations = [c for c in CHAT_CONVERSATIONS if c['user'] == session['user']]
+
+    # Sort by updated_at (most recent first)
+    user_conversations.sort(key=lambda x: x['updated_at'], reverse=True)
+
+    # Convert datetime objects to strings for JSON serialization
+    conversations_data = []
+    for conv in user_conversations:
+        conv_data = conv.copy()
+        conv_data['created_at'] = conv['created_at'].isoformat()
+        conv_data['updated_at'] = conv['updated_at'].isoformat()
+        conversations_data.append(conv_data)
+
+    return jsonify({"conversations": conversations_data})
+
+@app.route('/api/chat/messages/<int:conversation_id>')
+def get_chat_messages(conversation_id):
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Check if conversation belongs to user
+    conversation = next((c for c in CHAT_CONVERSATIONS if c['id'] == conversation_id and c['user'] == session['user']), None)
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
+
+    # Get messages for this conversation
+    conversation_messages = [m for m in CHAT_MESSAGES if m['conversation_id'] == conversation_id]
+
+    # Sort by timestamp
+    conversation_messages.sort(key=lambda x: x['timestamp'])
+
+    # Convert datetime objects to strings for JSON serialization
+    messages_data = []
+    for msg in conversation_messages:
+        msg_data = msg.copy()
+        msg_data['timestamp'] = msg['timestamp'].isoformat()
+        messages_data.append(msg_data)
+
+    return jsonify({"messages": messages_data})
+
+@app.route('/api/chat/end/<int:conversation_id>', methods=['POST'])
+def end_chat(conversation_id):
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Check if conversation belongs to user
+    conversation = next((c for c in CHAT_CONVERSATIONS if c['id'] == conversation_id and c['user'] == session['user']), None)
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
+
+    # Update conversation status
+    conversation['status'] = CHAT_STATUS['CLOSED']
+    conversation['updated_at'] = datetime.now()
+
+    # Add system message
+    message_id = len(CHAT_MESSAGES)
+    end_message = {
+        'id': message_id,
+        'conversation_id': conversation_id,
+        'user': 'system',
+        'message': 'Chat ended by user',
+        'type': MESSAGE_TYPE['SYSTEM'],
+        'timestamp': datetime.now(),
+        'read': False
+    }
+
+    CHAT_MESSAGES.append(end_message)
+
+    return jsonify({"success": True})
+
+@app.route('/api/support/ticket', methods=['POST'])
+def create_support_ticket():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    try:
+        subject = request.form.get('subject')
+        priority = request.form.get('priority')
+        category = request.form.get('category')
+        description = request.form.get('description')
+
+        if not all([subject, priority, category, description]):
+            return jsonify({"error": "All fields are required"}), 400
+
+        # Create support ticket
+        ticket_id = len(SUPPORT_TICKETS)
+        ticket = {
+            'id': ticket_id,
+            'user': session['user'],
+            'subject': subject,
+            'priority': priority,
+            'category': category,
+            'description': description,
+            'status': TICKET_STATUS['OPEN'],
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'assigned_agent': None,
+            'resolution': None,
+            'attachments': []
+        }
+
+        # Handle file attachment if present
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file.filename:
+                # In a real app, you would save the file and store the path
+                ticket['attachments'].append({
+                    'filename': file.filename,
+                    'size': len(file.read()),
+                    'uploaded_at': datetime.now()
+                })
+
+        SUPPORT_TICKETS.append(ticket)
+
+        # Create notification for the user
+        create_notification(
+            user_email=session['user'],
+            notification_type=NOTIFICATION_TYPE['SYSTEM'],
+            title='Support Ticket Created',
+            message=f'Your support ticket #{ticket_id} has been created and will be reviewed shortly.',
+            related_id=ticket_id,
+            related_type='ticket'
+        )
+
+        return jsonify({"success": True, "ticket_id": ticket_id})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/support-tickets')
+def support_tickets_page():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    # Get tickets for the current user
+    user_tickets = [t for t in SUPPORT_TICKETS if t['user'] == session['user']]
+
+    # Sort by created_at (most recent first)
+    user_tickets.sort(key=lambda x: x['created_at'], reverse=True)
+
+    return render_template('support_tickets.html', tickets=user_tickets)
+
+@app.route('/api/support/tickets')
+def get_support_tickets():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Get tickets for the current user
+    user_tickets = [t for t in SUPPORT_TICKETS if t['user'] == session['user']]
+
+    # Sort by created_at (most recent first)
+    user_tickets.sort(key=lambda x: x['created_at'], reverse=True)
+
+    # Convert datetime objects to strings for JSON serialization
+    tickets_data = []
+    for ticket in user_tickets:
+        ticket_data = ticket.copy()
+        ticket_data['created_at'] = ticket['created_at'].isoformat()
+        ticket_data['updated_at'] = ticket['updated_at'].isoformat()
+        tickets_data.append(ticket_data)
+
+    return jsonify({"tickets": tickets_data})
+
 @app.route('/unified_login', methods=['GET', 'POST'])
 def unified_login():
     if session.get('user'):
@@ -1863,6 +2118,113 @@ def book():
     else:
         flash('Van not available', 'danger')
         return redirect(url_for('list_vans'))
+
+# Chat event handlers
+@socketio.on('join_chat')
+def handle_join_chat(data):
+    if 'user' in session:
+        user_email = session['user']
+        join_room(f"chat_{user_email}")
+        print(f"User {user_email} joined chat room")
+
+@socketio.on('chat_message')
+def handle_chat_message(data):
+    if 'user' in session:
+        user_email = session['user']
+        conversation_id = data.get('conversation_id')
+        message = data.get('message')
+        message_type = data.get('type', MESSAGE_TYPE['USER'])
+
+        if conversation_id is not None and message:
+            # Store message
+            message_id = len(CHAT_MESSAGES)
+            chat_message = {
+                'id': message_id,
+                'conversation_id': conversation_id,
+                'user': user_email,
+                'message': message,
+                'type': message_type,
+                'timestamp': datetime.now(),
+                'read': False
+            }
+
+            CHAT_MESSAGES.append(chat_message)
+
+            # Update conversation
+            conversation = next((c for c in CHAT_CONVERSATIONS if c['id'] == conversation_id), None)
+            if conversation:
+                conversation['last_message'] = message
+                conversation['updated_at'] = datetime.now()
+
+            # Emit message to support agents (in a real app, you'd have a support room)
+            emit('chat_message', {
+                'id': message_id,
+                'conversation_id': conversation_id,
+                'user': user_email,
+                'message': message,
+                'type': message_type,
+                'timestamp': chat_message['timestamp'].isoformat()
+            }, room=f"chat_{user_email}")
+
+            # Simulate support response after a delay (for demo purposes)
+            if message_type == MESSAGE_TYPE['USER']:
+                socketio.start_background_task(simulate_support_response, conversation_id, user_email)
+
+def simulate_support_response(conversation_id, user_email):
+    """Simulate a support agent response for demo purposes"""
+    import time
+    time.sleep(2)  # Wait 2 seconds
+
+    # Generate a simple response based on keywords
+    last_message = None
+    for msg in reversed(CHAT_MESSAGES):
+        if msg['conversation_id'] == conversation_id and msg['type'] == MESSAGE_TYPE['USER']:
+            last_message = msg['message'].lower()
+            break
+
+    response = "Thank you for contacting us. How can I help you today?"
+
+    if last_message:
+        if 'booking' in last_message:
+            response = "I can help you with your booking. Could you please provide your booking reference number?"
+        elif 'payment' in last_message:
+            response = "I understand you're having payment issues. Let me help you resolve this. What specific problem are you experiencing?"
+        elif 'cancel' in last_message:
+            response = "I can help you with cancellation. Please note that our cancellation policy allows free cancellation up to 24 hours before your trip."
+        elif 'van' in last_message or 'vehicle' in last_message:
+            response = "I'd be happy to help you with van information. What would you like to know about our vehicles?"
+        elif 'hello' in last_message or 'hi' in last_message:
+            response = "Hello! Welcome to Tour Van Booking support. How can I assist you today?"
+
+    # Create support message
+    message_id = len(CHAT_MESSAGES)
+    support_message = {
+        'id': message_id,
+        'conversation_id': conversation_id,
+        'user': 'support',
+        'message': response,
+        'type': MESSAGE_TYPE['SUPPORT'],
+        'timestamp': datetime.now(),
+        'read': False
+    }
+
+    CHAT_MESSAGES.append(support_message)
+
+    # Update conversation
+    conversation = next((c for c in CHAT_CONVERSATIONS if c['id'] == conversation_id), None)
+    if conversation:
+        conversation['last_message'] = response
+        conversation['updated_at'] = datetime.now()
+
+    # Emit response to user
+    socketio.emit('chat_message', {
+        'id': message_id,
+        'conversation_id': conversation_id,
+        'user': 'support',
+        'message': response,
+        'type': MESSAGE_TYPE['SUPPORT'],
+        'timestamp': support_message['timestamp'].isoformat()
+    }, room=f"chat_{user_email}")
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
