@@ -1,7 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, auth
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime, timedelta
 import os
 import json
@@ -28,7 +28,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Sample user (for demo login)
 USERS = [
     {"username": "vinish523@gmail.com", "password": "vinish123", "role": "user"},
-    {"username": "vinish523@gmail.com", "password": "vinish123", "role": "updator"}
+    {"username": "vinish523@gmail.com", "password": "vinish123", "role": "updater"}
 ]
 
 # Sample data
@@ -71,6 +71,9 @@ BOOKINGS = []
 # Sample reviews
 REVIEWS = []
 
+# Sample notifications
+NOTIFICATIONS = []
+
 # Payment statuses
 PAYMENT_STATUS = {
     'PENDING': 'pending',
@@ -87,10 +90,28 @@ REVIEW_STATUS = {
     'REJECTED': 'rejected'
 }
 
+# Notification types
+NOTIFICATION_TYPE = {
+    'BOOKING_CONFIRMED': 'booking_confirmed',
+    'BOOKING_CANCELLED': 'booking_cancelled',
+    'PAYMENT_RECEIVED': 'payment_received',
+    'PAYMENT_FAILED': 'payment_failed',
+    'REVIEW_RECEIVED': 'review_received',
+    'REVIEW_RESPONSE': 'review_response',
+    'TRIP_REMINDER': 'trip_reminder',
+    'SYSTEM': 'system'
+}
+
+# Notification status
+NOTIFICATION_STATUS = {
+    'UNREAD': 'unread',
+    'READ': 'read'
+}
+
 @app.route('/')
 def welcome():
     if session.get('user'):
-        if session.get('role') == 'updator':
+        if session.get('role') == 'updater':
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('home'))
     return render_template('role_selection.html')
@@ -98,7 +119,7 @@ def welcome():
 @app.route('/role_selection')
 def role_selection():
     if session.get('user'):
-        if session.get('role') == 'updator':
+        if session.get('role') == 'updater':
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('home'))
     return render_template('role_selection.html')
@@ -127,7 +148,7 @@ def verify():
 
         # Determine redirect based on role
         redirect_url = '/home'
-        if role == 'updator':
+        if role == 'updater':
             redirect_url = '/admin'
 
         return jsonify({
@@ -218,7 +239,7 @@ def verify_otp_route():
 
             # Determine redirect based on role
             redirect_url = '/home'
-            if role == 'updator':
+            if role == 'updater':
                 redirect_url = '/admin'
 
             return jsonify({
@@ -269,7 +290,7 @@ def verify_otp_page():
 # The admin route should be defined once.
 @app.route('/admin')
 def admin_dashboard():
-    if session.get('role') != 'updator':
+    if session.get('role') != 'updater':
         flash("Access denied", "danger")
         return redirect(url_for('unified_login'))
     return render_template('admin.html', vans=VANS, BOOKINGS=BOOKINGS)
@@ -277,7 +298,7 @@ def admin_dashboard():
 @app.route('/signup_page')
 def signup_page():
     if session.get('user'):
-        if session.get('role') == 'updator':
+        if session.get('role') == 'updater':
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('home'))
 
@@ -343,7 +364,7 @@ def test_login():
         if role == 'user':
             print("Redirecting to home")
             return redirect(url_for('home'))  # Main booking page
-        elif role == 'updator':
+        elif role == 'updater':
             print("Redirecting to admin dashboard")
             return redirect(url_for('admin_dashboard'))  # Admin view
     else:
@@ -412,7 +433,7 @@ def map_view():
 
 @app.route('/admin/add', methods=['GET', 'POST'])
 def add_van():
-    if session.get('role') != 'updator':
+    if session.get('role') != 'updater':
         flash("Access denied", "danger")
         return redirect(url_for('unified_login'))
     if request.method == 'POST':
@@ -442,7 +463,7 @@ def add_van():
 
 @app.route('/admin/edit/<int:van_id>', methods=['GET', 'POST'])
 def edit_van(van_id):
-    if session.get('role') != 'updator':
+    if session.get('role') != 'updater':
         flash("Access denied", "danger")
         return redirect(url_for('unified_login'))
     van = next((v for v in VANS if v["id"] == van_id), None)
@@ -473,7 +494,7 @@ def edit_van(van_id):
 
 @app.route('/admin/delete/<int:van_id>', methods=['POST'])
 def delete_van(van_id):
-    if session.get('role') != 'updator':
+    if session.get('role') != 'updater':
         flash("Access denied", "danger")
         return redirect(url_for('unified_login'))
     global VANS
@@ -483,7 +504,7 @@ def delete_van(van_id):
 
 @app.route('/owner/dashboard')
 def owner_dashboard():
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         flash("Access denied. You must be logged in as a van owner.", "danger")
         return redirect(url_for('unified_login'))
 
@@ -525,7 +546,7 @@ def owner_dashboard():
 
 @app.route('/owner/calendar/<int:van_id>')
 def owner_calendar(van_id):
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         flash("Access denied. You must be logged in as a van owner.", "danger")
         return redirect(url_for('unified_login'))
 
@@ -608,7 +629,7 @@ def owner_calendar(van_id):
 
 @app.route('/owner/update_availability/<int:van_id>', methods=['POST'])
 def update_availability(van_id):
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         flash("Access denied. You must be logged in as a van owner.", "danger")
         return redirect(url_for('unified_login'))
 
@@ -654,7 +675,7 @@ def update_availability(van_id):
 
 @app.route('/owner/update_location/<int:van_id>', methods=['POST'])
 def update_location(van_id):
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         return jsonify({"success": False, "error": "Access denied. You must be logged in as a van owner."})
 
     van = next((v for v in VANS if v["id"] == van_id), None)
@@ -784,6 +805,44 @@ def update_payment_status(booking_id):
             booking['payment_status'] = PAYMENT_STATUS[payment_status.upper()]
             booking['payment_date'] = datetime.now()
             booking['payment_method'] = 'Credit Card'
+
+            # Get the van details
+            van = next((v for v in VANS if v['id'] == booking['van_id']), None)
+
+            # Create notification for payment completion
+            if payment_status.upper() == 'COMPLETED':
+                # Notification for the user
+                create_notification(
+                    user_email=session['user'],
+                    notification_type=NOTIFICATION_TYPE['PAYMENT_RECEIVED'],
+                    title='Payment Confirmed',
+                    message=f'Your payment of ${booking["total_price"]} for booking #{booking_id} has been received.',
+                    related_id=booking_id,
+                    related_type='payment'
+                )
+
+                # Notification for the van owner
+                if van:
+                    # In a real app, you would get the owner's email from the van object
+                    owner_email = "admin@example.com"  # This would be van['owner_email'] in a real app
+                    create_notification(
+                        user_email=owner_email,
+                        notification_type=NOTIFICATION_TYPE['PAYMENT_RECEIVED'],
+                        title='Payment Received',
+                        message=f'Payment of ${booking["total_price"]} has been received for booking #{booking_id}.',
+                        related_id=booking_id,
+                        related_type='payment'
+                    )
+            elif payment_status.upper() == 'FAILED':
+                # Notification for payment failure
+                create_notification(
+                    user_email=session['user'],
+                    notification_type=NOTIFICATION_TYPE['PAYMENT_FAILED'],
+                    title='Payment Failed',
+                    message=f'Your payment for booking #{booking_id} has failed. Please try again or contact support.',
+                    related_id=booking_id,
+                    related_type='payment'
+                )
 
             # Emit socket event for real-time updates
             payment_data = {
@@ -929,6 +988,28 @@ def submit_review(booking_id):
             }
             socketio.emit('review_update', review_data)
 
+            # Create notification for the user
+            create_notification(
+                user_email=session['user'],
+                notification_type=NOTIFICATION_TYPE['REVIEW_RECEIVED'],
+                title='Review Submitted',
+                message=f'Your review for {van["name"]} has been submitted successfully.',
+                related_id=review_id,
+                related_type='review'
+            )
+
+            # Create notification for the van owner
+            # In a real app, you would get the owner's email from the van object
+            owner_email = "admin@example.com"  # This would be van['owner_email'] in a real app
+            create_notification(
+                user_email=owner_email,
+                notification_type=NOTIFICATION_TYPE['REVIEW_RECEIVED'],
+                title='New Review Received',
+                message=f'You have received a new {rating}-star review for {van["name"]}.',
+                related_id=review_id,
+                related_type='review'
+            )
+
             flash('Your review has been submitted successfully', 'success')
             return redirect(url_for('view_review', review_id=review_id))
 
@@ -946,7 +1027,7 @@ def view_review(review_id):
         review = REVIEWS[review_id]
 
         # Check if this review belongs to the current user or if the user is the van owner
-        is_owner = session.get('role') == 'updator'
+        is_owner = session.get('role') == 'updater'
         if review['user'] != session['user'] and not is_owner:
             flash('Access denied', 'danger')
             return redirect(url_for('home'))
@@ -1008,7 +1089,7 @@ def van_reviews(van_id):
 
 @app.route('/owner/reviews')
 def owner_reviews():
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         flash("Access denied. You must be logged in as a van owner.", "danger")
         return redirect(url_for('unified_login'))
 
@@ -1031,7 +1112,7 @@ def owner_reviews():
 
 @app.route('/submit-response', methods=['POST'])
 def submit_response():
-    if 'user' not in session or session.get('role') != 'updator':
+    if 'user' not in session or session.get('role') != 'updater':
         flash("Access denied. You must be logged in as a van owner.", "danger")
         return redirect(url_for('unified_login'))
 
@@ -1058,6 +1139,16 @@ def submit_response():
             'response': response
         }
         socketio.emit('review_response_update', response_data)
+
+        # Create notification for the review author
+        create_notification(
+            user_email=review['user'],
+            notification_type=NOTIFICATION_TYPE['REVIEW_RESPONSE'],
+            title='Response to Your Review',
+            message=f'The owner has responded to your review for {van["name"]}.',
+            related_id=review_id,
+            related_type='review_response'
+        )
 
         flash('Your response has been submitted successfully', 'success')
         return redirect(url_for('owner_reviews'))
@@ -1087,10 +1178,35 @@ def cancel_booking():
             flash('You can only cancel upcoming bookings', 'warning')
             return redirect(url_for('my_bookings'))
 
+        # Get van details for notification
+        van = next((v for v in VANS if v['id'] == booking['van_id']), None)
+
         # Update booking status
         booking['status'] = 'cancelled'
         booking['cancel_reason'] = other_reason if reason == 'other' else reason
         booking['cancel_date'] = datetime.now()
+
+        # Create notification for the user
+        create_notification(
+            user_email=session['user'],
+            notification_type=NOTIFICATION_TYPE['BOOKING_CANCELLED'],
+            title='Booking Cancelled',
+            message=f'Your booking for {van["name"] if van else "the van"} has been cancelled.',
+            related_id=booking_id,
+            related_type='booking'
+        )
+
+        # Create notification for the van owner
+        if van:
+            owner_email = "admin@example.com"  # This would be van['owner_email'] in a real app
+            create_notification(
+                user_email=owner_email,
+                notification_type=NOTIFICATION_TYPE['BOOKING_CANCELLED'],
+                title='Booking Cancelled',
+                message=f'A booking for {van["name"]} has been cancelled by the customer.',
+                related_id=booking_id,
+                related_type='booking'
+            )
 
         # Emit socket event for real-time updates
         cancel_data = {
@@ -1106,10 +1222,71 @@ def cancel_booking():
     flash('Booking not found', 'danger')
     return redirect(url_for('my_bookings'))
 
+@app.route('/notifications')
+def notifications():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    # Get all notifications for the current user
+    user_notifications = [n for n in NOTIFICATIONS if n['user'] == session['user']]
+
+    # Sort by creation date (newest first)
+    user_notifications.sort(key=lambda x: x['created_at'], reverse=True)
+
+    # Count unread notifications
+    unread_count = len([n for n in user_notifications if n['status'] == NOTIFICATION_STATUS['UNREAD']])
+
+    return render_template('notifications.html',
+                          notifications=user_notifications,
+                          unread_count=unread_count)
+
+@app.route('/notifications/mark-read/<int:notification_id>', methods=['POST'])
+def mark_notification_read(notification_id):
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+
+    if notification_id < len(NOTIFICATIONS):
+        notification = NOTIFICATIONS[notification_id]
+
+        # Check if this notification belongs to the current user
+        if notification['user'] != session['user']:
+            return jsonify({"success": False, "error": "Access denied"}), 403
+
+        # Mark as read
+        notification['status'] = NOTIFICATION_STATUS['READ']
+        notification['read_at'] = datetime.now()
+
+        return jsonify({"success": True})
+
+    return jsonify({"success": False, "error": "Notification not found"}), 404
+
+@app.route('/notifications/mark-all-read', methods=['POST'])
+def mark_all_notifications_read():
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+
+    # Mark all unread notifications for the current user as read
+    for notification in NOTIFICATIONS:
+        if notification['user'] == session['user'] and notification['status'] == NOTIFICATION_STATUS['UNREAD']:
+            notification['status'] = NOTIFICATION_STATUS['READ']
+            notification['read_at'] = datetime.now()
+
+    return jsonify({"success": True})
+
+@app.route('/api/notifications/unread-count')
+def get_unread_notification_count():
+    if 'user' not in session:
+        return jsonify({"count": 0})
+
+    # Count unread notifications for the current user
+    unread_count = len([n for n in NOTIFICATIONS if n['user'] == session['user'] and n['status'] == NOTIFICATION_STATUS['UNREAD']])
+
+    return jsonify({"count": unread_count})
+
 @app.route('/unified_login', methods=['GET', 'POST'])
 def unified_login():
     if session.get('user'):
-        if session.get('role') == 'updator':
+        if session.get('role') == 'updater':
             # Check if the request has a 'redirect' parameter
             redirect_to = request.args.get('redirect', '')
             if redirect_to == 'owner':
@@ -1131,14 +1308,63 @@ def debug_session():
     <p><a href="/logout">Logout</a></p>
     """
 
+# Helper function to create notifications
+def create_notification(user_email, notification_type, title, message, related_id=None, related_type=None):
+    """
+    Create a new notification for a user
+
+    Args:
+        user_email (str): The email of the user to notify
+        notification_type (str): The type of notification (from NOTIFICATION_TYPE)
+        title (str): The notification title
+        message (str): The notification message
+        related_id (int, optional): ID of the related object (booking, review, etc.)
+        related_type (str, optional): Type of the related object ('booking', 'review', etc.)
+
+    Returns:
+        dict: The created notification object
+    """
+    notification_id = len(NOTIFICATIONS)
+    notification = {
+        'id': notification_id,
+        'user': user_email,
+        'type': notification_type,
+        'title': title,
+        'message': message,
+        'status': NOTIFICATION_STATUS['UNREAD'],
+        'created_at': datetime.now(),
+        'read_at': None,
+        'related_id': related_id,
+        'related_type': related_type
+    }
+
+    NOTIFICATIONS.append(notification)
+
+    # Emit socket event for real-time notification
+    socketio.emit('notification', {
+        'id': notification_id,
+        'title': title,
+        'message': message,
+        'type': notification_type,
+        'created_at': notification['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+    }, room=user_email)
+
+    return notification
+
 # Socket.IO event handlers
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
+    if 'user' in session:
+        # Join a room with the user's email as the room name
+        # This allows for user-specific notifications
+        join_room(session['user'])
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
+    if 'user' in session:
+        leave_room(session['user'])
 
 # Event for booking updates
 @socketio.on('booking_update')
@@ -1169,6 +1395,23 @@ def handle_review_update(data):
 def handle_review_response_update(data):
     # Broadcast the review response update to all connected clients
     emit('review_response_update', data, broadcast=True)
+
+# Event for marking notifications as read
+@socketio.on('mark_notification_read')
+def handle_mark_notification_read(data):
+    if 'user' in session and 'notification_id' in data:
+        notification_id = data['notification_id']
+        notification = next((n for n in NOTIFICATIONS if n['id'] == notification_id and n['user'] == session['user']), None)
+
+        if notification:
+            notification['status'] = NOTIFICATION_STATUS['READ']
+            notification['read_at'] = datetime.now()
+
+            # Emit event to update notification status
+            emit('notification_status_update', {
+                'id': notification_id,
+                'status': NOTIFICATION_STATUS['READ']
+            }, room=session['user'])
 
 # Update the book route to emit a socket event
 @app.route('/book', methods=['POST'])
@@ -1243,6 +1486,30 @@ def book():
             'user': session['user']
         }
         socketio.emit('booking_update', booking_data)
+
+        # Create notification for the user
+        create_notification(
+            user_email=session['user'],
+            notification_type=NOTIFICATION_TYPE['BOOKING_CONFIRMED'],
+            title='Booking Confirmed',
+            message=f'Your booking for {van["name"]} from {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")} has been confirmed.',
+            related_id=booking_id,
+            related_type='booking'
+        )
+
+        # Create notification for the van owner
+        # In a real app, you would get the owner's email from the van object
+        # For now, we'll just use a placeholder or admin email
+        if session.get('role') != 'updater':  # Don't notify if the owner is booking their own van
+            owner_email = "admin@example.com"  # This would be van['owner_email'] in a real app
+            create_notification(
+                user_email=owner_email,
+                notification_type=NOTIFICATION_TYPE['BOOKING_CONFIRMED'],
+                title='New Booking',
+                message=f'You have a new booking for {van["name"]} from {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")}.',
+                related_id=booking_id,
+                related_type='booking'
+            )
 
         flash('Booking confirmed!', 'success')
         return redirect(url_for('booking_confirmation', booking_id=booking_id))
