@@ -136,10 +136,8 @@
           </div>
 
           <!-- Calculate total price -->
-          {% set days = 1 %} {% if request.args.start_date and
-          request.args.end_date %} {% set days = 2 %}
-          <!-- Simplified calculation -->
-          {% endif %} {% set total_price = van.price * days %}
+          {% set days = trip_days or 1 %} {% set total_price = van.price * days
+          %}
 
           <div class="price-calculation">
             <div class="calculation-row">

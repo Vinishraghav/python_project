@@ -512,29 +512,70 @@ def list_vans():
     if 'user' not in session:
         return redirect(url_for('unified_login'))
 
-    # Get filter parameters
+    # Get search parameters
     location = request.args.get('location', '')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    passengers = request.args.get('passengers', 1, type=int)
 
-    # Filter vans by location if specified
-    filtered_vans = VANS
-    if location:
-        filtered_vans = [van for van in VANS if van['location'] == location]
+    # If no trip details are provided, redirect to home page
+    if not start_date or not end_date:
+        flash('Please select your trip dates first to see available vans.', 'info')
+        return redirect(url_for('home'))
 
-    # Add rating information to vans
-    for van in filtered_vans:
-        # Get all approved reviews for this van
+    # Filter vans based on criteria
+    filtered_vans = []
+    for van in VANS:
+        # Filter by location if specified
+        if location and location.lower() not in van['location'].lower():
+            continue
+
+        # Filter by passenger capacity
+        if van['seats'] < passengers:
+            continue
+
+        # Check availability for the selected dates
+        if start_date and end_date:
+            # Convert dates to check against blocked dates
+            blocked_dates = van.get('blocked_dates', [])
+
+            # Generate a list of all dates in the booking range
+            booking_dates = []
+            current_date = datetime.strptime(start_date, '%Y-%m-%d')
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+
+            while current_date <= end_date_obj:
+                booking_dates.append(current_date.strftime('%Y-%m-%d'))
+                current_date += timedelta(days=1)
+
+            # Check if any booking date is in the blocked dates
+            blocked = any(date in blocked_dates for date in booking_dates)
+
+            if blocked:
+                continue
+
+        # Add rating information to van
         van_reviews = [r for r in REVIEWS if r['van_id'] == van['id'] and r['status'] == REVIEW_STATUS['APPROVED']]
-
-        # Calculate average rating
         if van_reviews:
             avg_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
-            van['avg_rating'] = avg_rating
+            van['avg_rating'] = round(avg_rating, 1)
             van['review_count'] = len(van_reviews)
         else:
             van['avg_rating'] = 0
             van['review_count'] = 0
 
-    return render_template('vans.html', vans=filtered_vans)
+        filtered_vans.append(van)
+
+    # Calculate trip duration for price calculation
+    trip_days = 1
+    if start_date and end_date:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        trip_days = (end_dt - start_dt).days
+        if trip_days < 1:
+            trip_days = 1
+
+    return render_template('vans.html', vans=filtered_vans, trip_days=trip_days)
 
 @app.route('/map')
 def map_view():
@@ -2021,10 +2062,30 @@ def book():
     if 'user' not in session:
         return redirect(url_for('unified_login'))
 
-    van_id = int(request.form['van_id'])
-    start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d')
-    end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d')
-    passengers = int(request.form['passengers'])
+    try:
+        van_id = int(request.form['van_id'])
+
+        # Check if required fields are present
+        if not request.form.get('start_date') or not request.form.get('end_date') or not request.form.get('passengers'):
+            flash('Missing booking details. Please start from the home page to select your trip dates.', 'warning')
+            return redirect(url_for('home'))
+
+        start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d')
+        end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d')
+        passengers = int(request.form['passengers'])
+
+        # Validate dates
+        if start_date >= end_date:
+            flash('End date must be after start date.', 'danger')
+            return redirect(url_for('home'))
+
+        if start_date < datetime.now().date():
+            flash('Start date cannot be in the past.', 'danger')
+            return redirect(url_for('home'))
+
+    except (ValueError, KeyError) as e:
+        flash('Invalid booking data. Please try again.', 'danger')
+        return redirect(url_for('home'))
 
     # Get total price from form if provided, otherwise calculate it
     total_price = request.form.get('total_price')
