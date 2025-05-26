@@ -159,7 +159,88 @@ SUPPORT_TICKETS = []
 BOOKINGS = []
 
 # Sample reviews
-REVIEWS = []
+REVIEWS = [
+    {
+        'id': 0,
+        'booking_id': 0,
+        'van_id': 0,
+        'user': 'user@example.com',
+        'user_name': 'John Doe',
+        'rating': 5,
+        'title': 'Amazing van experience!',
+        'content': 'The van was perfect for our family trip. Clean, comfortable, and well-equipped. Highly recommend!',
+        'cleanliness': 5,
+        'comfort': 5,
+        'value': 4,
+        'service': 5,
+        'recommend': True,
+        'date': datetime.now() - timedelta(days=5),
+        'status': REVIEW_STATUS['APPROVED'],
+        'photos': [],
+        'owner_response': 'Thank you for the wonderful review! We\'re glad you enjoyed your trip.',
+        'response_date': datetime.now() - timedelta(days=3)
+    },
+    {
+        'id': 1,
+        'booking_id': 1,
+        'van_id': 0,
+        'user': 'user2@example.com',
+        'user_name': 'Jane Smith',
+        'rating': 4,
+        'title': 'Great value for money',
+        'content': 'Good van with all necessary amenities. The pickup was smooth and the van was clean.',
+        'cleanliness': 4,
+        'comfort': 4,
+        'value': 5,
+        'service': 4,
+        'recommend': True,
+        'date': datetime.now() - timedelta(days=10),
+        'status': REVIEW_STATUS['APPROVED'],
+        'photos': [],
+        'owner_response': None,
+        'response_date': None
+    },
+    {
+        'id': 2,
+        'booking_id': 2,
+        'van_id': 1,
+        'user': 'user3@example.com',
+        'user_name': 'Mike Johnson',
+        'rating': 5,
+        'title': 'Perfect for our adventure!',
+        'content': 'This van was exactly what we needed for our camping trip. Spacious and reliable.',
+        'cleanliness': 5,
+        'comfort': 5,
+        'value': 5,
+        'service': 5,
+        'recommend': True,
+        'date': datetime.now() - timedelta(days=15),
+        'status': REVIEW_STATUS['APPROVED'],
+        'photos': [],
+        'owner_response': 'So happy you had a great adventure! Come back anytime.',
+        'response_date': datetime.now() - timedelta(days=12)
+    },
+    {
+        'id': 3,
+        'booking_id': 3,
+        'van_id': 2,
+        'user': 'user4@example.com',
+        'user_name': 'Sarah Wilson',
+        'rating': 3,
+        'title': 'Decent van, some issues',
+        'content': 'The van was okay but had some minor issues with the air conditioning. Overall acceptable.',
+        'cleanliness': 3,
+        'comfort': 3,
+        'value': 3,
+        'service': 4,
+        'recommend': False,
+        'date': datetime.now() - timedelta(days=20),
+        'status': REVIEW_STATUS['APPROVED'],
+        'photos': [],
+        'owner_response': 'Thank you for the feedback. We\'ve fixed the AC issue.',
+        'response_date': datetime.now() - timedelta(days=18)
+    }
+]
 
 # Sample notifications
 NOTIFICATIONS = []

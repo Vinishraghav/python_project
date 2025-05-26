@@ -1,8 +1,5 @@
-{% extends 'base.html' %}
-
-{% block title %}Van Locations Map{% endblock %}
-
-{% block content %}
+{% extends 'base.html' %} {% block title %}Van Locations Map{% endblock %} {%
+block content %}
 <div class="container py-5">
   <div class="row mb-4">
     <div class="col-md-8">
@@ -11,7 +8,9 @@
       </h1>
       <p class="lead text-muted">Find vans near your desired location</p>
     </div>
-    <div class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end">
+    <div
+      class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end"
+    >
       <a href="{{ url_for('list_vans') }}" class="btn btn-outline-primary me-2">
         <i class="fas fa-list me-1"></i>List View
       </a>
@@ -28,16 +27,24 @@
         <div class="card-header bg-white py-3">
           <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-map-marker-alt text-primary me-2"></i>Available Vans Map
+              <i class="fas fa-map-marker-alt text-primary me-2"></i>Available
+              Vans Map
             </h5>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="show-all-vans" checked>
-              <label class="form-check-label" for="show-all-vans">Show All Vans</label>
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="show-all-vans"
+                checked
+              />
+              <label class="form-check-label" for="show-all-vans"
+                >Show All Vans</label
+              >
             </div>
           </div>
         </div>
         <div class="card-body p-0">
-          <div id="map" style="width: 100%; height: 500px;"></div>
+          <div id="map" style="width: 100%; height: 500px"></div>
         </div>
       </div>
     </div>
@@ -63,7 +70,14 @@
             </div>
             <div class="mb-3">
               <label for="seats-filter" class="form-label">Minimum Seats</label>
-              <input type="range" class="form-range" min="1" max="15" value="1" id="seats-filter">
+              <input
+                type="range"
+                class="form-range"
+                min="1"
+                max="15"
+                value="1"
+                id="seats-filter"
+              />
               <div class="d-flex justify-content-between">
                 <span>1</span>
                 <span id="seats-value">1</span>
@@ -72,14 +86,25 @@
             </div>
             <div class="mb-3">
               <label for="price-filter" class="form-label">Maximum Price</label>
-              <input type="range" class="form-range" min="50" max="200" value="200" id="price-filter">
+              <input
+                type="range"
+                class="form-range"
+                min="50"
+                max="200"
+                value="200"
+                id="price-filter"
+              />
               <div class="d-flex justify-content-between">
                 <span>$50</span>
                 <span id="price-value">$200</span>
                 <span>$200</span>
               </div>
             </div>
-            <button type="button" id="apply-filters" class="btn btn-primary w-100">
+            <button
+              type="button"
+              id="apply-filters"
+              class="btn btn-primary w-100"
+            >
               <i class="fas fa-filter me-1"></i>Apply Filters
             </button>
           </form>
@@ -96,7 +121,13 @@
         <div class="card-body p-0">
           <div id="van-list">
             {% for van in vans %}
-            <div class="van-item p-3 border-bottom" data-van-id="{{ van.id }}" data-location="{{ van.location }}" data-seats="{{ van.seats }}" data-price="{{ van.price }}">
+            <div
+              class="van-item p-3 border-bottom"
+              data-van-id="{{ van.id }}"
+              data-location="{{ van.location }}"
+              data-seats="{{ van.seats }}"
+              data-price="{{ van.price }}"
+            >
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <h6 class="mb-1">{{ van.name }}</h6>
@@ -109,7 +140,10 @@
                     <i class="fas fa-dollar-sign me-1"></i>{{ van.price }}/day
                   </div>
                 </div>
-                <a href="{{ url_for('list_vans') }}?van_id={{ van.id }}" class="btn btn-sm btn-outline-primary">
+                <a
+                  href="{{ url_for('list_vans') }}?van_id={{ van.id }}"
+                  class="btn btn-sm btn-outline-primary"
+                >
                   <i class="fas fa-info-circle me-1"></i>Details
                 </a>
               </div>
@@ -123,7 +157,40 @@
 </div>
 
 <!-- Google Maps API -->
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+<!-- Note: For production, you need to get a real Google Maps API key -->
+<!-- For demo purposes, we'll use a fallback map implementation -->
+<script>
+  // Fallback map implementation for demo
+  function initMap() {
+    const mapElement = document.getElementById("map");
+    mapElement.innerHTML = `
+      <div class="d-flex align-items-center justify-content-center h-100 bg-light">
+        <div class="text-center">
+          <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">Interactive Map</h5>
+          <p class="text-muted">Google Maps integration requires an API key</p>
+          <div class="mt-3">
+            <small class="text-muted">Van locations will be displayed here with a valid API key</small>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Still set up the filter functionality
+    document
+      .getElementById("apply-filters")
+      .addEventListener("click", applyFilters);
+    document
+      .getElementById("seats-filter")
+      .addEventListener("input", updateSeatsValue);
+    document
+      .getElementById("price-filter")
+      .addEventListener("input", updatePriceValue);
+  }
+
+  // Initialize map when page loads
+  document.addEventListener("DOMContentLoaded", initMap);
+</script>
 
 <script>
   // Map initialization
@@ -146,16 +213,16 @@
   // Geocode locations to get coordinates
   function geocodeLocations() {
     const geocoder = new google.maps.Geocoder();
-    
+
     vans.forEach((van, index) => {
       geocoder.geocode({ address: van.location }, (results, status) => {
         if (status === "OK" && results[0]) {
           van.lat = results[0].geometry.location.lat();
           van.lng = results[0].geometry.location.lng();
-          
+
           // Add marker after geocoding
           addMarker(van);
-          
+
           // Center map on first van
           if (index === 0) {
             map.setCenter(results[0].geometry.location);
@@ -174,7 +241,7 @@
         title: van.name,
         animation: google.maps.Animation.DROP
       });
-      
+
       // Add info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
@@ -186,11 +253,11 @@
           </div>
         `
       });
-      
+
       marker.addListener("click", () => {
         infoWindow.open(map, marker);
       });
-      
+
       markers.push({ marker, van });
     }
   }
@@ -205,10 +272,10 @@
       fullscreenControl: true,
       streetViewControl: false
     });
-    
+
     // Geocode locations and add markers
     geocodeLocations();
-    
+
     // Set up filter listeners
     document.getElementById("apply-filters").addEventListener("click", applyFilters);
     document.getElementById("seats-filter").addEventListener("input", updateSeatsValue);
@@ -219,7 +286,7 @@
   function updateSeatsValue() {
     document.getElementById("seats-value").textContent = document.getElementById("seats-filter").value;
   }
-  
+
   function updatePriceValue() {
     document.getElementById("price-value").textContent = "$" + document.getElementById("price-filter").value;
   }
@@ -229,27 +296,27 @@
     const locationFilter = document.getElementById("location-filter").value;
     const seatsFilter = parseInt(document.getElementById("seats-filter").value);
     const priceFilter = parseInt(document.getElementById("price-filter").value);
-    
+
     // Filter markers
     markers.forEach(({ marker, van }) => {
       const locationMatch = !locationFilter || van.location === locationFilter;
       const seatsMatch = van.seats >= seatsFilter;
       const priceMatch = van.price <= priceFilter;
-      
+
       marker.setVisible(locationMatch && seatsMatch && priceMatch);
     });
-    
+
     // Filter van list
     const vanItems = document.querySelectorAll(".van-item");
     vanItems.forEach(item => {
       const vanLocation = item.dataset.location;
       const vanSeats = parseInt(item.dataset.seats);
       const vanPrice = parseInt(item.dataset.price);
-      
+
       const locationMatch = !locationFilter || vanLocation === locationFilter;
       const seatsMatch = vanSeats >= seatsFilter;
       const priceMatch = vanPrice <= priceFilter;
-      
+
       item.style.display = locationMatch && seatsMatch && priceMatch ? "block" : "none";
     });
   }
@@ -261,21 +328,21 @@
     display: inline-flex;
     align-items: center;
     background-color: #f0f8ff;
-    color: #4A6DA7;
+    color: #4a6da7;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-size: 0.9rem;
   }
-  
+
   /* Van Item Styling */
   .van-item {
     transition: all 0.2s ease;
   }
-  
+
   .van-item:hover {
     background-color: #f8f9fa;
   }
-  
+
   /* Map Info Window */
   .map-info-window {
     padding: 5px;
