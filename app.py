@@ -158,6 +158,13 @@ SUPPORT_TICKETS = []
 # Sample bookings with payment information
 BOOKINGS = []
 
+# Review status constants
+REVIEW_STATUS = {
+    'PENDING': 'pending',
+    'APPROVED': 'approved',
+    'REJECTED': 'rejected'
+}
+
 # Sample reviews
 REVIEWS = [
     {
@@ -254,12 +261,7 @@ PAYMENT_STATUS = {
     'REFUNDED': 'refunded'
 }
 
-# Review statuses
-REVIEW_STATUS = {
-    'PENDING': 'pending',
-    'APPROVED': 'approved',
-    'REJECTED': 'rejected'
-}
+
 
 # Notification types
 NOTIFICATION_TYPE = {
@@ -2160,7 +2162,7 @@ def book():
             flash('End date must be after start date.', 'danger')
             return redirect(url_for('home'))
 
-        if start_date < datetime.now().date():
+        if start_date.date() < datetime.now().date():
             flash('Start date cannot be in the past.', 'danger')
             return redirect(url_for('home'))
 
