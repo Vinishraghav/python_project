@@ -31,7 +31,7 @@ USERS = [
     {"username": "vinish523@gmail.com", "password": "vinish123", "role": "updater"}
 ]
 
-# Sample data
+# Sample data with enhanced van information
 VANS = [
     {
         "id": 1,
@@ -41,7 +41,18 @@ VANS = [
         "available": True,
         "location": "New York City",
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "blocked_dates": []
+        "blocked_dates": [],
+        "description": "Perfect for weekend getaways and outdoor adventures.",
+        "image": "/static/img/van1.jpg",
+        "amenities": ["WiFi", "Kitchen", "Bed", "Solar Power", "Shower"],
+        "fuel_type": "Gasoline",
+        "transmission": "Manual",
+        "year": 2020,
+        "mileage": "25 MPG",
+        "features": ["GPS Navigation", "Backup Camera", "Air Conditioning", "Heating"],
+        "category": "Adventure",
+        "rating": 4.5,
+        "total_reviews": 23
     },
     {
         "id": 2,
@@ -51,7 +62,18 @@ VANS = [
         "available": True,
         "location": "Los Angeles",
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "blocked_dates": []
+        "blocked_dates": [],
+        "description": "Spacious van perfect for family trips.",
+        "image": "/static/img/van2.jpg",
+        "amenities": ["WiFi", "Full Kitchen", "Multiple Beds", "Shower", "Toilet", "TV"],
+        "fuel_type": "Diesel",
+        "transmission": "Automatic",
+        "year": 2021,
+        "mileage": "30 MPG",
+        "features": ["GPS Navigation", "Backup Camera", "Air Conditioning", "Heating", "Entertainment System"],
+        "category": "Family",
+        "rating": 4.8,
+        "total_reviews": 35
     },
     {
         "id": 3,
@@ -61,9 +83,68 @@ VANS = [
         "available": True,
         "location": "Chicago",
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "blocked_dates": []
+        "blocked_dates": [],
+        "description": "Compact and efficient for city exploration.",
+        "image": "/static/img/van3.jpg",
+        "amenities": ["WiFi", "Kitchenette", "Bed"],
+        "fuel_type": "Electric",
+        "transmission": "Automatic",
+        "year": 2022,
+        "mileage": "100 MPGe",
+        "features": ["GPS Navigation", "USB Charging", "Air Conditioning"],
+        "category": "Urban",
+        "rating": 4.2,
+        "total_reviews": 18
+    },
+    {
+        "id": 4,
+        "name": "Luxury Nomad",
+        "price": 300,
+        "seats": 4,
+        "available": True,
+        "location": "Seattle",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "blocked_dates": ["2025-01-15", "2025-01-16"],
+        "description": "Premium van with luxury amenities for the discerning traveler.",
+        "image": "/static/img/van4.jpg",
+        "amenities": ["WiFi", "Gourmet Kitchen", "Queen Bed", "Shower", "Toilet", "TV", "Sound System"],
+        "fuel_type": "Hybrid",
+        "transmission": "Automatic",
+        "year": 2023,
+        "mileage": "35 MPG",
+        "features": ["GPS Navigation", "Backup Camera", "Air Conditioning", "Heating", "Entertainment System", "Leather Seats"],
+        "category": "Luxury",
+        "rating": 4.9,
+        "total_reviews": 12
+    },
+    {
+        "id": 5,
+        "name": "Budget Wanderer",
+        "price": 80,
+        "seats": 2,
+        "available": True,
+        "location": "Portland",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "blocked_dates": [],
+        "description": "Affordable option for budget-conscious travelers.",
+        "image": "/static/img/van5.jpg",
+        "amenities": ["Basic Kitchen", "Bed"],
+        "fuel_type": "Gasoline",
+        "transmission": "Manual",
+        "year": 2018,
+        "mileage": "22 MPG",
+        "features": ["Basic Radio", "Manual Windows"],
+        "category": "Budget",
+        "rating": 3.8,
+        "total_reviews": 8
     }
 ]
+
+# Sample saved searches
+SAVED_SEARCHES = []
+
+# Sample favorite vans
+FAVORITE_VANS = []
 
 # Sample bookings with payment information
 BOOKINGS = []
@@ -1282,6 +1363,272 @@ def get_unread_notification_count():
     unread_count = len([n for n in NOTIFICATIONS if n['user'] == session['user'] and n['status'] == NOTIFICATION_STATUS['UNREAD']])
 
     return jsonify({"count": unread_count})
+
+@app.route('/advanced-search')
+def advanced_search():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    return render_template('advanced_search.html')
+
+@app.route('/api/vans')
+def api_get_vans():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Add rating information to vans
+    vans_with_ratings = []
+    for van in VANS:
+        van_copy = van.copy()
+        # Get all approved reviews for this van
+        van_reviews = [r for r in REVIEWS if r['van_id'] == van['id'] and r['status'] == REVIEW_STATUS['APPROVED']]
+
+        # Calculate average rating
+        if van_reviews:
+            avg_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
+            van_copy['avg_rating'] = round(avg_rating, 1)
+            van_copy['review_count'] = len(van_reviews)
+        else:
+            van_copy['avg_rating'] = 0
+            van_copy['review_count'] = 0
+
+        vans_with_ratings.append(van_copy)
+
+    return jsonify({"vans": vans_with_ratings})
+
+@app.route('/api/search-vans')
+def api_search_vans():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Get search parameters
+    location = request.args.get('location', '').lower()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    min_price = request.args.get('min_price', type=int)
+    max_price = request.args.get('max_price', type=int)
+    capacity = request.args.get('capacity', type=int)
+    category = request.args.get('category')
+    fuel_type = request.args.get('fuel_type')
+    transmission = request.args.get('transmission')
+    amenities = request.args.get('amenities', '').split(',') if request.args.get('amenities') else []
+    min_rating = request.args.get('min_rating', type=float)
+
+    # Start with all vans
+    filtered_vans = []
+
+    for van in VANS:
+        van_copy = van.copy()
+
+        # Add rating information
+        van_reviews = [r for r in REVIEWS if r['van_id'] == van['id'] and r['status'] == REVIEW_STATUS['APPROVED']]
+        if van_reviews:
+            avg_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
+            van_copy['avg_rating'] = round(avg_rating, 1)
+            van_copy['review_count'] = len(van_reviews)
+        else:
+            van_copy['avg_rating'] = 0
+            van_copy['review_count'] = 0
+
+        # Apply filters
+        if location and location not in van['location'].lower():
+            continue
+
+        if min_price and van['price'] < min_price:
+            continue
+
+        if max_price and van['price'] > max_price:
+            continue
+
+        if capacity and van['seats'] < capacity:
+            continue
+
+        if category and van.get('category') != category:
+            continue
+
+        if fuel_type and van.get('fuel_type') != fuel_type:
+            continue
+
+        if transmission and van.get('transmission') != transmission:
+            continue
+
+        if min_rating and van_copy['avg_rating'] < min_rating:
+            continue
+
+        # Check amenities
+        if amenities and amenities != ['']:
+            van_amenities = van.get('amenities', [])
+            if not all(amenity in van_amenities for amenity in amenities):
+                continue
+
+        # Check date availability
+        if start_date and end_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+
+                # Check if van is available for the selected dates
+                blocked_dates = van.get('blocked_dates', [])
+                is_available = True
+
+                for blocked_date_str in blocked_dates:
+                    blocked_date = datetime.strptime(blocked_date_str, '%Y-%m-%d')
+                    if start_dt <= blocked_date <= end_dt:
+                        is_available = False
+                        break
+
+                if not is_available:
+                    continue
+
+            except ValueError:
+                # Invalid date format, skip date filtering
+                pass
+
+        filtered_vans.append(van_copy)
+
+    return jsonify({"vans": filtered_vans})
+
+@app.route('/api/save-search', methods=['POST'])
+def save_search():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    try:
+        data = request.get_json()
+        search_name = data.get('search_name')
+        search_description = data.get('search_description', '')
+        search_criteria = data.get('search_criteria', {})
+        email_alerts = data.get('email_alerts', False)
+
+        if not search_name:
+            return jsonify({"error": "Search name is required"}), 400
+
+        # Create saved search
+        search_id = len(SAVED_SEARCHES)
+        saved_search = {
+            'id': search_id,
+            'user': session['user'],
+            'name': search_name,
+            'description': search_description,
+            'criteria': search_criteria,
+            'email_alerts': email_alerts,
+            'created_at': datetime.now(),
+            'last_used': datetime.now()
+        }
+
+        SAVED_SEARCHES.append(saved_search)
+
+        return jsonify({"success": True, "search_id": search_id})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/saved-searches')
+def get_saved_searches():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Get saved searches for the current user
+    user_searches = [s for s in SAVED_SEARCHES if s['user'] == session['user']]
+
+    # Sort by last used (most recent first)
+    user_searches.sort(key=lambda x: x['last_used'], reverse=True)
+
+    return jsonify({"searches": user_searches})
+
+@app.route('/api/delete-saved-search/<int:search_id>', methods=['DELETE'])
+def delete_saved_search(search_id):
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if search_id < len(SAVED_SEARCHES):
+        search = SAVED_SEARCHES[search_id]
+
+        # Check if this search belongs to the current user
+        if search['user'] != session['user']:
+            return jsonify({"error": "Access denied"}), 403
+
+        # Remove the search (in a real app, you'd mark it as deleted)
+        SAVED_SEARCHES[search_id] = None
+
+        return jsonify({"success": True})
+
+    return jsonify({"error": "Search not found"}), 404
+
+@app.route('/api/toggle-favorite', methods=['POST'])
+def toggle_favorite():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    try:
+        data = request.get_json()
+        van_id = data.get('van_id')
+
+        if van_id is None:
+            return jsonify({"error": "Van ID is required"}), 400
+
+        # Check if van exists
+        van = next((v for v in VANS if v['id'] == van_id), None)
+        if not van:
+            return jsonify({"error": "Van not found"}), 404
+
+        # Check if already favorited
+        existing_favorite = next((f for f in FAVORITE_VANS if f['user'] == session['user'] and f['van_id'] == van_id), None)
+
+        if existing_favorite:
+            # Remove from favorites
+            FAVORITE_VANS.remove(existing_favorite)
+            is_favorited = False
+        else:
+            # Add to favorites
+            favorite = {
+                'id': len(FAVORITE_VANS),
+                'user': session['user'],
+                'van_id': van_id,
+                'created_at': datetime.now()
+            }
+            FAVORITE_VANS.append(favorite)
+            is_favorited = True
+
+        return jsonify({"success": True, "is_favorited": is_favorited})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/favorites')
+def get_favorites():
+    if 'user' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Get favorite van IDs for the current user
+    user_favorites = [f['van_id'] for f in FAVORITE_VANS if f['user'] == session['user']]
+
+    # Get the actual van data
+    favorite_vans = []
+    for van in VANS:
+        if van['id'] in user_favorites:
+            van_copy = van.copy()
+
+            # Add rating information
+            van_reviews = [r for r in REVIEWS if r['van_id'] == van['id'] and r['status'] == REVIEW_STATUS['APPROVED']]
+            if van_reviews:
+                avg_rating = sum(r['rating'] for r in van_reviews) / len(van_reviews)
+                van_copy['avg_rating'] = round(avg_rating, 1)
+                van_copy['review_count'] = len(van_reviews)
+            else:
+                van_copy['avg_rating'] = 0
+                van_copy['review_count'] = 0
+
+            favorite_vans.append(van_copy)
+
+    return jsonify({"vans": favorite_vans})
+
+@app.route('/favorites')
+def favorites_page():
+    if 'user' not in session:
+        return redirect(url_for('unified_login'))
+
+    return render_template('favorites.html')
 
 @app.route('/unified_login', methods=['GET', 'POST'])
 def unified_login():
